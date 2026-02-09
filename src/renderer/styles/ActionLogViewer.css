@@ -1,0 +1,194 @@
+/* ActionLogViewer Styles */
+
+.log-viewer-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+}
+
+.log-viewer-dialog {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 1000px;
+  height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.log-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.log-viewer-header h2 {
+  margin: 0;
+  font-size: 20px;
+  color: #333;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  font-size: 32px;
+  color: #666;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+}
+
+.close-button:hover {
+  color: #333;
+}
+
+.log-viewer-filters {
+  display: flex;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-weight: 600;
+  color: #666;
+}
+
+.filter-group select {
+  padding: 6px 12px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.export-buttons {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+}
+
+.export-buttons button {
+  padding: 6px 16px;
+  background-color: #0066cc;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.export-buttons button:hover {
+  background-color: #0052a3;
+}
+
+.log-viewer-content {
+  flex: 1;
+  overflow: auto;
+  padding: 24px;
+}
+
+.no-logs {
+  text-align: center;
+  color: #999;
+  padding: 40px;
+  font-size: 16px;
+}
+
+.log-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.log-table thead {
+  background-color: #f5f5f5;
+  position: sticky;
+  top: 0;
+}
+
+.log-table th {
+  text-align: left;
+  padding: 12px;
+  font-weight: 600;
+  color: #666;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+.log-table td {
+  padding: 12px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.log-table tbody tr:hover {
+  background-color: #f9f9f9;
+}
+
+.log-timestamp {
+  white-space: nowrap;
+  font-size: 12px;
+  color: #666;
+}
+
+.log-instruction {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.log-action-type {
+  font-family: monospace;
+  font-size: 12px;
+  background-color: #e3f2fd;
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.log-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-icon {
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.status-success {
+  color: #4caf50;
+}
+
+.status-failed {
+  color: #f44336;
+}
+
+.status-cancelled {
+  color: #ff9800;
+}
+
+.log-duration {
+  text-align: right;
+  font-size: 12px;
+  color: #666;
+}
