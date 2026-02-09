@@ -13,6 +13,8 @@ export class ElectronShell {
   private cdpSession: Protocol.ProtocolMapping.API | null = null;
   private navigationCallbacks: Array<(url: string) => void> = [];
   private pageLoadCallbacks: Array<(url: string, title: string) => void> = [];
+  private lastProcessedUrl: string = '';
+  private pageLoadDebounceTimer: NodeJS.Timeout | null = null;
 
   constructor() {}
 
@@ -113,7 +115,19 @@ export class ElectronShell {
     this.webView.webContents.on('did-finish-load', () => {
       const url = this.webView?.webContents.getURL() || '';
       const title = this.webView?.webContents.getTitle() || '';
-      this.notifyPageLoad(url, title);
+      
+      // Debounce to prevent duplicate processing (iframes can trigger this multiple times)
+      if (this.pageLoadDebounceTimer) {
+        clearTimeout(this.pageLoadDebounceTimer);
+      }
+      
+      // Only process if URL is different or first load
+      if (url !== this.lastProcessedUrl) {
+        this.pageLoadDebounceTimer = setTimeout(() => {
+          this.lastProcessedUrl = url;
+          this.notifyPageLoad(url, title);
+        }, 1000); // Wait 1 second for page to fully stabilize
+      }
     });
 
     // Initialize CDP session
