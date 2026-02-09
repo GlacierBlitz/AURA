@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment variables - NEVER COMMIT
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+.vite/
+out/
+
+# Electron-specific
+*.log
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+
+# Test coverage
+coverage/
+
+# SQLite databases
+*.db
+*.db-journal
+
+# User data
+user-data/
