@@ -9,8 +9,8 @@
  * 5. Provide formatted context for LLM prompts
  */
 
-import { PageState } from '../../shared/types/pageState';
-import { ActionDescriptor } from '../../shared/types/actions';
+import type { SanitizedPageState } from '@shared/types';
+import type { ActionDescriptor, ActionResult } from '@shared/types';
 
 export interface ConversationMessage {
   role: 'user' | 'assistant' | 'system';
@@ -22,14 +22,14 @@ export interface ConversationMessage {
 export interface ContextSnapshot {
   url: string;
   timestamp: Date;
-  pageState: PageState;
-  actions: ActionDescriptor[];
+  pageState: SanitizedPageState;
+  actions: ActionResult[];
 }
 
 export interface ContextSummary {
   conversationHistory: ConversationMessage[];
-  currentPageState: PageState | null;
-  recentActions: ActionDescriptor[];
+  currentPageState: SanitizedPageState | null;
+  recentActions: ActionResult[];
   totalTokens: number;
 }
 
@@ -44,49 +44,86 @@ export class ContextManager {
    * Add a message to conversation history
    */
   addMessage(message: ConversationMessage): void {
-    // TODO: Implement
-    // 1. Add message to history
-    // 2. Estimate tokens (rough: 1 token ≈ 4 characters)
-    // 3. Update currentTokenCount
-    // 4. If over maxMessages or maxTokens, trigger summarization
+    // Estimate tokens for this message
+    const messageTokens = this.estimateTokens(message.content);
+    message.tokens = messageTokens;
     
-    throw new Error('Not implemented');
+    // Add to history
+    this.conversationHistory.push(message);
+    this.currentTokenCount += messageTokens;
+    
+    // Keep only last maxMessages
+    if (this.conversationHistory.length > this.maxMessages) {
+      const removed = this.conversationHistory.shift();
+      if (removed && removed.tokens) {
+        this.currentTokenCount -= removed.tokens;
+      }
+    }
   }
 
   /**
    * Add a page state snapshot
    */
-  addPageState(url: string, pageState: PageState, actions: ActionDescriptor[] = []): void {
-    // TODO: Implement
-    // 1. Add to pageStateHistory
-    // 2. Keep only last 3 snapshots
+  addPageState(url: string, pageState: SanitizedPageState, actions: ActionResult[] = []): void {
+    const snapshot: ContextSnapshot = {
+      url,
+      timestamp: new Date(),
+      pageState,
+      actions
+    };
     
-    throw new Error('Not implemented');
+    this.pageStateHistory.push(snapshot);
+    
+    // Keep only last 3 snapshots
+    if (this.pageStateHistory.length > 3) {
+      this.pageStateHistory.shift();
+    }
   }
 
   /**
    * Get formatted context for LLM prompt
    */
   getFormattedContext(): string {
-    // TODO: Implement
-    // Return formatted string with:
-    // - Conversation history (last 5 messages or summarized)
-    // - Current page state (title, URL, key elements)
-    // - Recent actions (last 3)
+    let context = '';
     
-    throw new Error('Not implemented');
+    // Add conversation history
+    if (this.conversationHistory.length > 0) {
+      context += 'RECENT CONVERSATION:\n';
+      for (const msg of this.conversationHistory) {
+        context += `${msg.role}: ${msg.content}\n`;
+      }
+      context += '\n';
+    }
+    
+    // Add current page info
+    if (this.pageStateHistory.length > 0) {
+      const current = this.pageStateHistory[this.pageStateHistory.length - 1];
+      context += `CURRENT PAGE:\n`;
+      context += `URL: ${current.pageState.url}\n`;
+      context += `Title: ${current.pageState.title}\n\n`;
+    }
+    
+    // Add recent actions
+    const recentActions = this.getRecentActions(3);
+    if (recentActions.length > 0) {
+      context += 'RECENT ACTIONS:\n';
+      for (const action of recentActions) {
+        context += `- ${action.status}: ${JSON.stringify(action.action)}\n`;
+      }
+    }
+    
+    return context;
   }
 
   /**
    * Get full context summary
    */
   getContextSummary(): ContextSummary {
-    // TODO: Implement
     return {
-      conversationHistory: [],
-      currentPageState: null,
-      recentActions: [],
-      totalTokens: 0
+      conversationHistory: [...this.conversationHistory],
+      currentPageState: this.getCurrentPageState(),
+      recentActions: this.getRecentActions(),
+      totalTokens: this.currentTokenCount
     };
   }
 
@@ -123,17 +160,26 @@ export class ContextManager {
   /**
    * Get recent actions (last N)
    */
-  getRecentActions(count: number = 3): ActionDescriptor[] {
-    // TODO: Implement
-    return [];
+  getRecentActions(count: number = 3): ActionResult[] {
+    const allActions: ActionResult[] = [];
+    
+    // Collect actions from all snapshots
+    for (const snapshot of this.pageStateHistory) {
+      allActions.push(...snapshot.actions);
+    }
+    
+    // Return last N actions
+    return allActions.slice(-count);
   }
 
   /**
    * Get current page state
    */
-  getCurrentPageState(): PageState | null {
-    // TODO: Implement
-    return null;
+  getCurrentPageState(): SanitizedPageState | null {
+    if (this.pageStateHistory.length === 0) {
+      return null;
+    }
+    return this.pageStateHistory[this.pageStateHistory.length - 1].pageState;
   }
 
   /**

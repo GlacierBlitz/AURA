@@ -134,6 +134,8 @@ export class ElectronShell {
       const url = this.webView?.webContents.getURL() || '';
       const title = this.webView?.webContents.getTitle() || '';
       
+      console.log(`[did-finish-load] fired for: ${url}`);
+      
       // Debounce to prevent duplicate processing (iframes can trigger this multiple times)
       if (this.pageLoadDebounceTimer) {
         clearTimeout(this.pageLoadDebounceTimer);
@@ -141,10 +143,15 @@ export class ElectronShell {
       
       // Only process if URL is different or first load
       if (url !== this.lastProcessedUrl) {
+        console.log(`[did-finish-load] URL changed from ${this.lastProcessedUrl} to ${url}, scheduling processPageLoad`);
+        // Update immediately to prevent duplicate scheduling
+        this.lastProcessedUrl = url;
+        
         this.pageLoadDebounceTimer = setTimeout(() => {
-          this.lastProcessedUrl = url;
           this.notifyPageLoad(url, title);
         }, 1000); // Wait 1 second for page to fully stabilize
+      } else {
+        console.log(`[did-finish-load] URL unchanged (${url}), skipping`);
       }
     });
 

@@ -60,12 +60,19 @@ export function ChatPanel() {
           messages.map((message) => (
             <div
               key={message.id}
-              className={`chat-message chat-message-${message.role}`}
+              className={`chat-message chat-message-${message.role} ${message.actionResult ? 'chat-message-action' : ''}`}
               role="article"
               aria-label={`${message.role} message`}
             >
               <div className="message-role">{message.role === 'user' ? 'You' : 'Assistant'}</div>
-              <div className="message-content">{message.content}</div>
+              <div className="message-content">
+                {message.content}
+                {message.actionResult && (
+                  <div className={`action-status action-status-${message.actionResult.status}`}>
+                    {message.actionResult.status === 'success' ? '✓ Completed' : '✗ Failed'}
+                  </div>
+                )}
+              </div>
               <div className="message-timestamp" aria-label="Time sent">
                 {new Date(message.timestamp).toLocaleTimeString()}
               </div>

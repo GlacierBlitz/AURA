@@ -34,6 +34,9 @@ export interface PageSummary {
   purpose: string;
   sections: string[];
   availableActions: string[];
+  accessibilityNotes?: string;
+  confidence: number;
+  generatedAt: number;
 }
 
 // ─── Action Descriptors ─────────────────────────────────────

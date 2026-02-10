@@ -10,13 +10,19 @@
  */
 
 import { Protocol } from 'devtools-protocol';
-import { ActionDescriptor } from '../../shared/types/actions';
+import type {
+  ActionDescriptor,
+  ClickAction,
+  TypeAction,
+  NavigateAction,
+  ScrollAction,
+} from '@shared/types';
 import { ActionValidator, ValidationResult } from './actionValidator';
 import * as cdp from './cdpCommands';
 
 export interface ExecutionResult {
   success: boolean;
-  actionId: string;
+  action: ActionDescriptor;
   error?: string;
   executionTimeMs: number;
   retriesUsed: number;
@@ -60,7 +66,7 @@ export class ActionExecutionEngine {
       if (!validation.isValid) {
         return {
           success: false,
-          actionId: action.actionId,
+          action,
           error: `Validation failed: ${validation.errors.join(', ')}`,
           executionTimeMs: Date.now() - startTime,
           retriesUsed: 0
@@ -79,7 +85,7 @@ export class ActionExecutionEngine {
 
           return {
             success: true,
-            actionId: action.actionId,
+            action,
             executionTimeMs: Date.now() - startTime,
             retriesUsed: attempt
           };
@@ -97,7 +103,7 @@ export class ActionExecutionEngine {
     } catch (error) {
       return {
         success: false,
-        actionId: action.actionId,
+        action,
         error: error instanceof Error ? error.message : 'Unknown error',
         executionTimeMs: Date.now() - startTime,
         retriesUsed
@@ -126,89 +132,79 @@ export class ActionExecutionEngine {
     cdpSession: Protocol.ProtocolMapping.API,
     action: ActionDescriptor
   ): Promise<void> {
-    switch (action.actionType) {
-      case 'CLICK':
-        return this.executeClick(cdpSession, action);
-      case 'TYPE':
-        return this.executeType(cdpSession, action);
-      case 'SELECT':
-        return this.executeSelect(cdpSession, action);
-      case 'SUBMIT':
-        return this.executeSubmit(cdpSession, action);
-      case 'NAVIGATE':
-        return this.executeNavigate(cdpSession, action);
-      case 'SCROLL':
-        return this.executeScroll(cdpSession, action);
-      case 'WAIT':
-        return this.executeWait(cdpSession, action);
-      case 'EXTRACT':
-        return this.executeExtract(cdpSession, action);
-      case 'CHECK':
-        return this.executeCheck(cdpSession, action);
-      case 'HOVER':
-        return this.executeHover(cdpSession, action);
-      case 'FOCUS':
-        return this.executeFocus(cdpSession, action);
+    switch (action.action) {
+      case 'click':
+        return this.executeClick(cdpSession, action as ClickAction);
+      case 'type':
+        return this.executeType(cdpSession, action as TypeAction);
+      case 'navigate':
+        return this.executeNavigate(cdpSession, action as NavigateAction);
+      case 'scroll':
+        return this.executeScroll(cdpSession, action as ScrollAction);
+      case 'select':
+      case 'submit':
+      case 'wait':
+      case 'extract':
+      case 'back':
+      case 'forward':
+      case 'summarize':
+        throw new Error(`Action type '${action.action}' not yet implemented`);
       default:
-        throw new Error(`Unknown action type: ${(action as any).actionType}`);
+        throw new Error(`Unknown action type: ${(action as any).action}`);
     }
   }
 
-  // TODO: Implement each action type below
+  // ─── Core Action Implementations ───────────────────────────
 
-  private async executeClick(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Use cdp.clickElement(action.selector)
-    throw new Error('Not implemented');
+  private async executeClick(cdpSession: Protocol.ProtocolMapping.API, action: ClickAction): Promise<void> {
+    console.log(`Executing CLICK on selector: ${action.selector}`);
+    await cdp.clickElement(cdpSession, action.selector);
   }
 
-  private async executeType(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Use cdp.typeText(action.selector, action.text)
-    throw new Error('Not implemented');
+  private async executeType(cdpSession: Protocol.ProtocolMapping.API, action: TypeAction): Promise<void> {
+    console.log(`Executing TYPE on selector: ${action.selector}, text: "${action.text}"`);
+    await cdp.typeText(cdpSession, action.selector, action.text);
   }
 
+  private async executeNavigate(cdpSession: Protocol.ProtocolMapping.API, action: NavigateAction): Promise<void> {
+    console.log(`Executing NAVIGATE to URL: ${action.url}`);
+    await cdp.navigateToUrl(cdpSession, action.url);
+  }
+
+  private async executeScroll(cdpSession: Protocol.ProtocolMapping.API, action: ScrollAction): Promise<void> {
+    console.log(`Executing SCROLL ${action.direction}`);
+    const amount = typeof action.amount === 'number' ? action.amount : undefined;
+    await cdp.scroll(cdpSession, action.direction, amount, action.container);
+  }
+
+  // ─── Placeholder implementations for other actions ───────────
+  
   private async executeSelect(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Use cdp.selectOption(action.selector, action.value)
-    throw new Error('Not implemented');
+    throw new Error('SELECT action not yet implemented');
   }
 
   private async executeSubmit(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Find form element and call .submit() or click submit button
-    throw new Error('Not implemented');
-  }
-
-  private async executeNavigate(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Use cdp.navigateToUrl(action.url)
-    throw new Error('Not implemented');
-  }
-
-  private async executeScroll(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Use cdp.scroll(action.scrollDirection, action.amount, action.selector)
-    throw new Error('Not implemented');
+    throw new Error('SUBMIT action not yet implemented');
   }
 
   private async executeWait(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Use cdp.waitForElement(action.selector, action.timeoutMs)
-    throw new Error('Not implemented');
+    throw new Error('WAIT action not yet implemented');
   }
 
   private async executeExtract(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Extract data from element(s) using selector
-    throw new Error('Not implemented');
+    throw new Error('EXTRACT action not yet implemented');
   }
 
   private async executeCheck(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Use cdp.setCheckbox(action.selector, action.checked)
-    throw new Error('Not implemented');
+    throw new Error('CHECK action not yet implemented');
   }
 
   private async executeHover(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Dispatch mouseover event to element
-    throw new Error('Not implemented');
+    throw new Error('HOVER action not yet implemented');
   }
 
   private async executeFocus(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    // TODO: Call .focus() on element
-    throw new Error('Not implemented');
+    throw new Error('FOCUS action not yet implemented');
   }
 
   /**

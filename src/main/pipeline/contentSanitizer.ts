@@ -18,7 +18,9 @@ export class ContentSanitizer {
     /rolep lay/gi,
   ];
 
-  private static readonly MAX_TEXT_LENGTH = 500;
+  private static readonly MAX_TEXT_LENGTH = 200; // Reduced from 500
+  private static readonly MAX_AX_NODES = 100; // Hard limit on accessibility tree nodes
+  private static readonly MAX_DOM_ELEMENTS = 100; // Hard limit on DOM elements
 
   /**
    * Sanitize page state by removing hidden elements, truncating text, and flagging suspicious content
@@ -67,6 +69,12 @@ export class ContentSanitizer {
 
       return true;
     });
+
+    // Prioritize and limit nodes if still too many
+    if (pageState.axTree.nodes.length > ContentSanitizer.MAX_AX_NODES) {
+      pageState.axTree.nodes = this.prioritizeAndLimitNodes(pageState.axTree.nodes, ContentSanitizer.MAX_AX_NODES);
+      console.warn(`⚠️  Reduced AX tree from ${originalCount} to ${ContentSanitizer.MAX_AX_NODES} nodes to fit token limit`);
+    }
 
     // Truncate long text fields and check for suspicious content
     pageState.axTree.nodes.forEach((node) => {
@@ -128,6 +136,12 @@ export class ContentSanitizer {
       return true;
     });
 
+    // Limit elements if too many
+    if (pageState.simplifiedDOM.elements.length > ContentSanitizer.MAX_DOM_ELEMENTS) {
+      pageState.simplifiedDOM.elements = pageState.simplifiedDOM.elements.slice(0, ContentSanitizer.MAX_DOM_ELEMENTS);
+      console.warn(`⚠️  Reduced DOM from ${originalCount} to ${ContentSanitizer.MAX_DOM_ELEMENTS} elements to fit token limit`);
+    }
+
     // Truncate long text fields and check for suspicious content
     pageState.simplifiedDOM.elements.forEach((element) => {
       const originalName = element.name;
@@ -178,5 +192,49 @@ export class ContentSanitizer {
     }
 
     return false;
+  }
+
+  /**
+   * Prioritize and limit accessibility tree nodes
+   * Keep most important interactive elements
+   */
+  private prioritizeAndLimitNodes(nodes: any[], maxNodes: number): any[] {
+    // Priority scores for different roles
+    const rolePriority: Record<string, number> = {
+      button: 10,
+      link: 9,
+      textbox: 8,
+      searchbox: 8,
+      combobox: 7,
+      checkbox: 7,
+      radio: 7,
+      menuitem: 6,
+      tab: 6,
+      heading: 5,
+      navigation: 4,
+      main: 4,
+      article: 3,
+      region: 2,
+      generic: 1
+    };
+
+    // Score each node
+    const scoredNodes = nodes.map(node => ({
+      node,
+      score: (rolePriority[node.role] || 0) + (node.name ? 2 : 0) + (node.focused ? 5 : 0)
+    }));
+
+    // Sort by priority (highest first) and take top N
+    scoredNodes.sort((a, b) => b.score - a.score);
+    return scoredNodes.slice(0, maxNodes).map(item => item.node);
+  }
+
+  /**
+   * Estimate token count for sanitized page state
+   * Rough estimate: 1 token ≈ 4 characters
+   */
+  static estimateTokens(pageState: SanitizedPageState): number {
+    const jsonString = JSON.stringify(pageState);
+    return Math.ceil(jsonString.length / 4);
   }
 }
