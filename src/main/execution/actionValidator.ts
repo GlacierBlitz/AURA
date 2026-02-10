@@ -8,7 +8,7 @@
  * 4. Add unit tests in tests/unit/actionValidator.test.ts
  */
 
-import { ActionDescriptor } from '../../shared/types/actions';
+import type { ActionDescriptor, NavigateAction, ClickAction, TypeAction, ScrollAction } from '@shared/types';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -51,28 +51,71 @@ export class ActionValidator {
     const errors: string[] = [];
 
     // V-001: Action type must be one of 11 supported types
-    // TODO: Implement
+    const validTypes = [
+      'navigate', 'click', 'type', 'select', 'submit', 
+      'scroll', 'back', 'forward', 'wait', 'extract', 'summarize'
+    ];
+    if (!validTypes.includes(action.action)) {
+      errors.push(`Invalid action type: ${action.action}`);
+      return errors; // Early return if action type is invalid
+    }
 
     // V-002: Required fields must be present based on action type
-    // TODO: Implement
+    if (!action.description || action.description.trim() === '') {
+      errors.push('Missing required field: description');
+    }
 
-    // V-003: Field data types must match schema
-    // TODO: Implement
-
-    // V-004: Text length constraints (maxLength: 500)
-    // TODO: Implement
-
-    // V-005: Selector format validation (CSS selector syntax)
-    // TODO: Implement
-
-    // V-006: URL format validation for NAVIGATE actions
-    // TODO: Implement
-
-    // V-007: Enum value validation (e.g., scrollDirection: 'up' | 'down')
-    // TODO: Implement
-
-    // V-008: Confidence score range [0.0, 1.0]
-    // TODO: Implement
+    // Type-specific required field validation
+    switch (action.action) {
+      case 'navigate':
+        const navAction = action as NavigateAction;
+        if (!navAction.url || navAction.url.trim() === '') {
+          errors.push('NAVIGATE action missing required field: url');
+        } else {
+          // V-006: URL format validation for NAVIGATE actions
+          if (!this.isValidUrl(navAction.url)) {
+            errors.push(`Invalid URL format: ${navAction.url}`);
+          }
+          // Check URL scheme for security
+          const securityError = this.validateUrlScheme(navAction.url);
+          if (securityError) {
+            errors.push(securityError);
+          }
+        }
+        break;
+      
+      case 'click':
+        const clickAction = action as ClickAction;
+        if (!clickAction.selector || clickAction.selector.trim() === '') {
+          errors.push('CLICK action missing required field: selector');
+        }
+        break;
+      
+      case 'type':
+        const typeAction = action as TypeAction;
+        if (!typeAction.selector || typeAction.selector.trim() === '') {
+          errors.push('TYPE action missing required field: selector');
+        }
+        if (!typeAction.text && typeAction.text !== '') {
+          errors.push('TYPE action missing required field: text');
+        }
+        // V-004: Text length constraints
+        if (typeAction.text && typeAction.text.length > 500) {
+          errors.push(`Text too long: ${typeAction.text.length} characters (max 500)`);
+        }
+        break;
+      
+      case 'scroll':
+        const scrollAction = action as ScrollAction;
+        if (!scrollAction.direction) {
+          errors.push('SCROLL action missing required field: direction');
+        }
+        // V-007: Enum value validation
+        if (scrollAction.direction && !['up', 'down'].includes(scrollAction.direction)) {
+          errors.push(`Invalid scroll direction: ${scrollAction.direction}`);
+        }
+        break;
+    }
 
     return errors;
   }
@@ -143,6 +186,26 @@ export class ActionValidator {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  /**
+   * Helper: Validate URL scheme for security
+   */
+  private validateUrlScheme(url: string): string | null {
+    try {
+      const urlObj = new URL(url);
+      const allowedSchemes = ['http:', 'https:', 'file:'];
+      if (!allowedSchemes.includes(urlObj.protocol)) {
+        return `Unsafe URL scheme: ${urlObj.protocol} (allowed: http, https, file)`;
+      }
+      // Warn about javascript: and data: schemes
+      if (urlObj.protocol === 'javascript:' || urlObj.protocol === 'data:') {
+        return `Blocked dangerous URL scheme: ${urlObj.protocol}`;
+      }
+      return null;
+    } catch {
+      return 'Invalid URL';
     }
   }
 

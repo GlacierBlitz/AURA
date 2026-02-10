@@ -186,3 +186,35 @@
   font-size: 13px;
   text-align: center;
 }
+
+/* Action status styles */
+.chat-message-action {
+  border-left: 4px solid var(--primary-color);
+}
+
+.action-status {
+  margin-top: 8px;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.action-status-success {
+  background: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #4caf50;
+}
+
+.action-status-failure {
+  background: #ffebee;
+  color: #c62828;
+  border: 1px solid #f44336;
+}
+
+.action-status-cancelled {
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ff9800;
+}

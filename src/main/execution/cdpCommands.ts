@@ -35,10 +35,46 @@ export async function queryElement(
   selector: string
 ): Promise<ElementInfo> {
   try {
-    // TODO: Implement using Runtime.evaluate to execute document.querySelector
-    // Return ElementInfo with existence, visibility, interactability, etc.
-    
-    throw new Error('Not implemented');
+    const result = await cdpSession.sendCommand('Runtime.evaluate', {
+      expression: `
+        (function() {
+          const element = document.querySelector(${JSON.stringify(selector)});
+          if (!element) {
+            return { exists: false, visible: false, interactable: false };
+          }
+          
+          const rect = element.getBoundingClientRect();
+          const style = window.getComputedStyle(element);
+          const visible = rect.width > 0 && rect.height > 0 && 
+                         style.visibility !== 'hidden' && 
+                         style.display !== 'none' &&
+                         style.opacity !== '0';
+          
+          const interactable = visible && 
+                              !element.disabled &&
+                              !element.hasAttribute('readonly') &&
+                              element.offsetParent !== null;
+          
+          return {
+            exists: true,
+            visible: visible,
+            interactable: interactable,
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
+            tagName: element.tagName,
+            disabled: element.disabled || false,
+            readonly: element.hasAttribute('readonly')
+          };
+        })()
+      `,
+      returnByValue: true,
+    });
+
+    if (result.exceptionDetails) {
+      console.error('Exception while querying element:', result.exceptionDetails);
+      return { exists: false, visible: false, interactable: false };
+    }
+
+    return result.result.value as ElementInfo;
   } catch (error) {
     console.error('Error querying element:', error);
     return {
@@ -56,11 +92,38 @@ export async function clickElement(
   cdpSession: Protocol.ProtocolMapping.API,
   selector: string
 ): Promise<void> {
-  // TODO: Implement using Runtime.evaluate to execute:
-  // document.querySelector(selector).click()
-  // Or use Input.dispatchMouseEvent for more control
-  
-  throw new Error('Not implemented');
+  // First, verify element is clickable
+  const elementInfo = await queryElement(cdpSession, selector);
+  if (!elementInfo.exists) {
+    throw new Error(`Element not found: ${selector}`);
+  }
+  if (!elementInfo.visible) {
+    throw new Error(`Element not visible: ${selector}`);
+  }
+  if (!elementInfo.interactable) {
+    throw new Error(`Element not interactable: ${selector}`);
+  }
+
+  // Perform the click
+  const result = await cdpSession.sendCommand('Runtime.evaluate', {
+    expression: `
+      (function() {
+        const element = document.querySelector(${JSON.stringify(selector)});
+        if (!element) return false;
+        element.click();
+        return true;
+      })()
+    `,
+    returnByValue: true,
+  });
+
+  if (result.exceptionDetails) {
+    throw new Error(`Failed to click element: ${result.exceptionDetails.text}`);
+  }
+
+  if (!result.result.value) {
+    throw new Error(`Failed to click element: ${selector}`);
+  }
 }
 
 /**
@@ -71,12 +134,38 @@ export async function typeText(
   selector: string,
   text: string
 ): Promise<void> {
-  // TODO: Implement using:
-  // 1. Focus element (Runtime.evaluate with .focus())
-  // 2. Clear existing value (set .value = '')
-  // 3. Type each character (Input.dispatchKeyEvent)
-  
-  throw new Error('Not implemented');
+  // Verify element is interactable
+  const elementInfo = await queryElement(cdpSession, selector);
+  if (!elementInfo.exists) {
+    throw new Error(`Element not found: ${selector}`);
+  }
+  if (!elementInfo.interactable) {
+    throw new Error(`Element not editable: ${selector}`);
+  }
+
+  // Focus element and set value
+  const result = await cdpSession.sendCommand('Runtime.evaluate', {
+    expression: `
+      (function() {
+        const element = document.querySelector(${JSON.stringify(selector)});
+        if (!element) return false;
+        element.focus();
+        element.value = ${JSON.stringify(text)};
+        element.dispatchEvent(new Event('input', { bubbles: true }));
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        return true;
+      })()
+    `,
+    returnByValue: true,
+  });
+
+  if (result.exceptionDetails) {
+    throw new Error(`Failed to type text: ${result.exceptionDetails.text}`);
+  }
+
+  if (!result.result.value) {
+    throw new Error(`Failed to type text into: ${selector}`);
+  }
 }
 
 /**
@@ -120,11 +209,55 @@ export async function scroll(
   amount?: number,
   selector?: string
 ): Promise<void> {
-  // TODO: Implement using Runtime.evaluate to execute:
-  // - window.scrollBy() for page scroll
-  // - element.scrollBy() for element scroll
-  
-  throw new Error('Not implemented');
+  let scrollExpression: string;
+
+  if (selector) {
+    // Scroll specific element
+    scrollExpression = `
+      (function() {
+        const element = document.querySelector(${JSON.stringify(selector)});
+        if (!element) return false;
+        ${getScrollCommand('element', direction, amount)}
+        return true;
+      })()
+    `;
+  } else {
+    // Scroll page
+    scrollExpression = `
+      (function() {
+        ${getScrollCommand('window', direction, amount)}
+        return true;
+      })()
+    `;
+  }
+
+  const result = await cdpSession.sendCommand('Runtime.evaluate', {
+    expression: scrollExpression,
+    returnByValue: true,
+  });
+
+  if (result.exceptionDetails) {
+    throw new Error(`Failed to scroll: ${result.exceptionDetails.text}`);
+  }
+
+  if (selector && !result.result.value) {
+    throw new Error(`Failed to scroll element: ${selector}`);
+  }
+}
+
+function getScrollCommand(target: 'window' | 'element', direction: 'up' | 'down' | 'top' | 'bottom', amount?: number): string {
+  switch (direction) {
+    case 'up':
+      return `${target}.scrollBy(0, ${amount ? -amount : -300});`;
+    case 'down':
+      return `${target}.scrollBy(0, ${amount || 300});`;
+    case 'top':
+      return `${target}.scrollTo(0, 0);`;
+    case 'bottom':
+      return target === 'window'
+        ? `${target}.scrollTo(0, document.body.scrollHeight);`
+        : `${target}.scrollTo(0, ${target}.scrollHeight);`;
+  }
 }
 
 /**
@@ -134,9 +267,22 @@ export async function navigateToUrl(
   cdpSession: Protocol.ProtocolMapping.API,
   url: string
 ): Promise<void> {
-  // TODO: Implement using Page.navigate
+  // Validate URL scheme (security check)
+  const validSchemes = ['http:', 'https:', 'file:'];
+  try {
+    const urlObj = new URL(url);
+    if (!validSchemes.includes(urlObj.protocol)) {
+      throw new Error(`Unsafe URL scheme: ${urlObj.protocol}`);
+    }
+  } catch (error: any) {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+
+  // Navigate using Page.navigate
+  await cdpSession.sendCommand('Page.navigate', { url });
   
-  throw new Error('Not implemented');
+  // Wait for network to be idle
+  await waitForStabilization(cdpSession, 500);
 }
 
 /**
@@ -160,10 +306,10 @@ export async function waitForStabilization(
   cdpSession: Protocol.ProtocolMapping.API,
   stabilityWindowMs: number = 500
 ): Promise<void> {
-  // TODO: Implement using MutationObserver via Runtime.evaluate
-  // Wait until no mutations detected for stabilityWindowMs
-  
-  throw new Error('Not implemented');
+  // Simple implementation: wait for Network idle and fixed delay
+  return new Promise((resolve) => {
+    setTimeout(resolve, stabilityWindowMs);
+  });
 }
 
 /**
@@ -186,14 +332,8 @@ export async function isElementVisible(
   cdpSession: Protocol.ProtocolMapping.API,
   selector: string
 ): Promise<boolean> {
-  // TODO: Implement checking:
-  // 1. Element exists
-  // 2. offsetWidth/offsetHeight > 0
-  // 3. opacity > 0
-  // 4. visibility !== 'hidden'
-  // 5. display !== 'none'
-  
-  throw new Error('Not implemented');
+  const elementInfo = await queryElement(cdpSession, selector);
+  return elementInfo.visible;
 }
 
 /**

@@ -7,7 +7,14 @@ import { OpenAIAdapter } from './llm/providers/openaiAdapter';
 import { WhisperService } from './services/whisperService';
 import { LLM_CONFIG } from '@shared/constants';
 import { IPC_CHANNELS } from '@shared/types';
-import type { PipelineSummaryPayload, PipelineStatusPayload } from '@shared/types';
+import type {
+  PipelineSummaryPayload,
+  PipelineStatusPayload,
+  PipelineStatus,
+  PipelineMessagePayload,
+  ChatMessage,
+} from '@shared/types';
+import type { ActionPlanResponse, ClarificationResponse } from '@shared/types';
 import * as dotenv from 'dotenv';
 
 // Load environment variables
@@ -91,6 +98,45 @@ async function createWindow() {
       });
     });
 
+    intentPipeline.onActionPlan((plan: ActionPlanResponse) => {
+      const message: ChatMessage = {
+        id: `plan-${Date.now()}`,
+        role: 'assistant',
+        content: `I've analyzed your request and created an action plan with ${plan.steps.length} step(s). ${plan.explanation}`,
+        timestamp: new Date().toISOString(),
+      };
+      const payload: PipelineMessagePayload = { message };
+      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
+      console.log('Action plan sent to renderer');
+    });
+
+    intentPipeline.onClarification((clarification: ClarificationResponse) => {
+      const message: ChatMessage = {
+        id: `clarification-${Date.now()}`,
+        role: 'assistant',
+        content: clarification.reason + (clarification.options ? '\n\nSuggestions:\n' + clarification.options.map(opt => `• ${opt}`).join('\n') : ''),
+        timestamp: new Date().toISOString(),
+      };
+      const payload: PipelineMessagePayload = { message };
+      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
+      console.log('Clarification sent to renderer');
+    });
+
+    intentPipeline.onActionResult((result) => {
+      console.log('[onActionResult callback] Creating message for action:', result.action.description);
+      const statusIcon = result.status === 'success' ? '✓' : '✗';
+      const message: ChatMessage = {
+        id: `action-${Date.now()}`,
+        role: 'assistant',
+        content: `${statusIcon} ${result.action.description}${result.error ? ` - Error: ${result.error.message}` : ''}`,
+        timestamp: new Date().toISOString(),
+        actionResult: result,
+      };
+      const payload: PipelineMessagePayload = { message };
+      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
+      console.log('[onActionResult callback] Action result sent to renderer:', result.status);
+    });
+
     return mainWindow;
   } catch (error) {
     console.error('Failed to create window:', error);
@@ -130,7 +176,7 @@ async function initialize() {
     });
 
     // Register IPC handlers with references to shell and config function
-    registerIPCHandlers(electronShell, configureLLMProvider, whisperService);
+    registerIPCHandlers(electronShell, configureLLMProvider, whisperService, intentPipeline);
 
     // Create the main window
     await createWindow();

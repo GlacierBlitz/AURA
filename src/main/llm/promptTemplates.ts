@@ -72,42 +72,55 @@ Your response must be valid JSON with this structure:
 {
   "type": "action-plan",
   "confidence": 0.9,
-  "plan": {
-    "steps": [
-      {
-        "action": "click",
-        "selector": "#search-button",
-        "description": "Click the search button",
-        "confirmationLevel": "none"
-      }
-    ],
-    "reasoning": "Brief explanation of why these steps achieve the user's goal"
-  }
+  "intent": "Brief description of what the user wants to do",
+  "steps": [
+    {
+      "action": "scroll",
+      "direction": "down",
+      "amount": "page",
+      "description": "Scroll down one page"
+    }
+  ],
+  "explanation": "Brief explanation of why these steps achieve the user's goal"
+}
+
+Example for clicking:
+{
+  "type": "action-plan",
+  "confidence": 0.95,
+  "intent": "Click the search button",
+  "steps": [
+    {
+      "action": "click",
+      "selector": "#search-button",
+      "elementDescription": "search button",
+      "description": "Click the search button"
+    }
+  ],
+  "explanation": "Clicking the search button as requested"
 }
 
 Available action types:
-- navigate: Go to a URL
-- click: Click an element
-- type: Enter text into a field
-- select: Choose an option from dropdown
-- submit: Submit a form
-- scroll: Scroll the page
-- back/forward: Browser navigation
-- wait: Wait for page to load
-- extract: Extract specific data
-- summarize: Get summary of current state
+- navigate: Go to a URL (requires: url)
+- click: Click an element (requires: selector, elementDescription)
+- type: Enter text into a field (requires: selector, text, elementDescription)
+- scroll: Scroll the page (requires: direction ["up" or "down"], optional: amount)
+- select: Choose an option from dropdown (requires: selector, value, elementDescription)
+- submit: Submit a form (requires: selector, elementDescription)
+- wait: Wait for page to load (requires: duration in ms)
+- extract: Extract specific data (requires: selector, elementDescription)
 
-Confirmation levels:
-- none: Safe actions (navigation, reading)
-- optional: Actions that change state but are reversible
-- required: Actions with significant consequences (submit forms, delete, purchase)
+Field requirements:
+- All actions require a "description" field explaining what this step does
+- "scroll" action: direction must be "up" or "down", amount can be "page", "top", "end", or a number
+- For actions targeting elements, include both "selector" and "elementDescription"
 
 Guidelines:
 - Break complex tasks into simple, atomic steps
 - Use the most specific selector available (id > aria-label > css selector)
-- Set appropriate confirmation levels based on action risk
 - If the intent is unclear, respond with a clarification request instead
-- Validate that required elements exist in the PAGE CONTEXT`;
+- Validate that required elements exist in the PAGE CONTEXT
+- Keep step descriptions concise and action-oriented`;
 
 /**
  * Template for clarification requests
@@ -118,14 +131,11 @@ Your response must be valid JSON with this structure:
 {
   "type": "clarification",
   "confidence": 1.0,
-  "clarification": {
-    "question": "What did you want me to do?",
-    "reason": "The instruction was ambiguous",
-    "suggestions": [
-      "Option 1: Do this",
-      "Option 2: Do that"
-    ]
-  }
+  "reason": "Explain why clarification is needed",
+  "options": [
+    "Option 1: Try this action",
+    "Option 2: Or try this action"
+  ]
 }
 
 When to request clarification:

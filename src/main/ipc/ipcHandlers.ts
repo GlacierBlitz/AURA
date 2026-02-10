@@ -16,14 +16,21 @@ import type {
 let electronShell: any = null;
 let configureLLMCallback: ((apiKey: string) => void) | null = null;
 let whisperService: any = null;
+let intentPipeline: any = null;
 
 /**
  * Register all IPC channel handlers
  */
-export function registerIPCHandlers(shell?: any, configCallback?: (apiKey: string) => void, whisper?: any): void {
+export function registerIPCHandlers(
+  shell?: any,
+  configCallback?: (apiKey: string) => void,
+  whisper?: any,
+  pipeline?: any
+): void {
   electronShell = shell;
   configureLLMCallback = configCallback;
   whisperService = whisper;
+  intentPipeline = pipeline;
 
   // User navigates to URL
   ipcMain.on(IPC_CHANNELS.USER_NAVIGATE, (event, payload: NavigatePayload) => {
@@ -108,10 +115,33 @@ export function registerIPCHandlers(shell?: any, configCallback?: (apiKey: strin
   });
 
   // User submits an instruction
-  ipcMain.on(IPC_CHANNELS.USER_SUBMIT_INSTRUCTION, (event, payload: UserInstructionPayload) => {
+  ipcMain.on(IPC_CHANNELS.USER_SUBMIT_INSTRUCTION, async (event, payload: UserInstructionPayload) => {
     console.log('Received user instruction:', payload.text);
-    // TODO: Forward to IntentPipeline in Phase 3
-    // For now, just log it
+    
+    if (!intentPipeline) {
+      console.error('Intent pipeline not available');
+      return;
+    }
+
+    if (!electronShell) {
+      console.error('Electron shell not available');
+      return;
+    }
+
+    try {
+      // Get CDP session from electron shell
+      const cdpSession = electronShell.getCDPSession();
+      if (!cdpSession) {
+        console.error('CDP session not available');
+        return;
+      }
+
+      // Process the instruction through the pipeline
+      // Note: conversation history will be added when ContextManager is implemented
+      await intentPipeline.processUserInstruction(payload.text, cdpSession, []);
+    } catch (error: any) {
+      console.error('Error processing user instruction:', error);
+    }
   });
 
   // User responds to confirmation dialog
