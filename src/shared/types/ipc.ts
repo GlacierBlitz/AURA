@@ -17,7 +17,6 @@ export const IPC_CHANNELS = {
   USER_UPDATE_ACCESSIBILITY: 'user:update-accessibility',
   USER_SET_MODAL_OPEN: 'user:set-modal-open',
   USER_TRANSCRIBE_AUDIO: 'user:transcribe-audio',
-  USER_AUTOCOMPLETE: 'user:autocomplete',
   USER_SET_SUGGESTIONS_VISIBLE: 'user:set-suggestions-visible',
 
   // Main to Renderer
@@ -140,15 +139,6 @@ export interface TranscribeAudioPayload {
 
 export interface TranscribeAudioResponse {
   text?: string;
-  error?: string;
-}
-
-export interface AutocompletePayload {
-  query: string;
-}
-
-export interface AutocompleteResponse {
-  suggestions: string[];
   error?: string;
 }
 

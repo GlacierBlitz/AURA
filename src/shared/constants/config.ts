@@ -69,7 +69,6 @@ export const TTS_CONFIG = {
   AUTO_READ_MESSAGES: false,
   // Add voice quality preferences
   PREFER_FEMALE: true,     // Most systems have better female voices
-  PREFER_GOOGLE_VOICES: true, // Prefer Google voices if available
 } as const;
 
 // ─── Logging Configuration ──────────────────────────────────

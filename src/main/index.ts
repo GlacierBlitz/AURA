@@ -5,7 +5,6 @@ import { IntentPipeline } from './pipeline/intentPipeline';
 import { LLMOrchestrator } from './llm/llmOrchestrator';
 import { OpenAIAdapter } from './llm/providers/openaiAdapter';
 import { WhisperService } from './services/whisperService';
-import { SerpService } from './services/serpService';
 import { LLM_CONFIG } from '@shared/constants';
 import { IPC_CHANNELS } from '@shared/types';
 import type {
@@ -38,9 +37,6 @@ const intentPipeline = new IntentPipeline(
 // Instantiate Whisper service for voice transcription
 const whisperService = new WhisperService();
 
-// Instantiate SERP service for search autocomplete
-const serpService = new SerpService();
-
 // Auto-configure LLM provider with API key from environment
 const apiKey = process.env.OPENAI_API_KEY;
 if (apiKey) {
@@ -56,15 +52,6 @@ if (apiKey) {
   console.log('LLM provider and Whisper service auto-configured from environment');
 } else {
   console.warn('⚠️  OPENAI_API_KEY not found in environment variables. Please set it in .env file.');
-}
-
-// Auto-configure SerpAPI service with API key from environment
-const serpApiKey = process.env.SERP_API_KEY;
-if (serpApiKey) {
-  serpService.configure(serpApiKey);
-  console.log('✓ SerpAPI configured - search autocomplete ready');
-} else {
-  console.warn('⚠️  SERP_API_KEY not found in environment. Add SERP_API_KEY to .env for search autocomplete.');
 }
 
 // Keep reference to the main window for sending messages

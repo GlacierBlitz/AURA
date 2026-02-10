@@ -35,7 +35,6 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccess
       
       onNavigate(finalUrl);
       setUrl(finalUrl);
-      setShowSuggestions(false);
     }
   };
 
@@ -137,16 +136,9 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccess
             placeholder="Enter website URL or search..."
             value={url}
             onChange={handleInputChange}
-            
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') {
-                setShowSuggestions(false);
-              }
-            }}
             aria-label="Website URL"
             aria-autocomplete="none"
           />
-          {/* Autocomplete removed */}
         </div>
       </form>
       <div className="nav-controls">

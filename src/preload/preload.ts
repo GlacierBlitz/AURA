@@ -8,8 +8,6 @@ import type {
   SetModalOpenPayload,
   TranscribeAudioPayload,
   TranscribeAudioResponse,
-  AutocompletePayload,
-  AutocompleteResponse,
   PipelineSummaryPayload,
   PipelineStatusPayload,
   PipelineMessagePayload,
