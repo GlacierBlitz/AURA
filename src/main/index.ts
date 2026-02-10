@@ -130,11 +130,10 @@ function registerPipelineCallbacks() {
   intentPipeline.onActionResult((result) => {
     if (!mainWindowRef) return;
     console.log('[onActionResult callback] Creating message for action:', result.action.description);
-    const statusIcon = result.status === 'success' ? '✓' : '✗';
     const message: ChatMessage = {
       id: `action-${Date.now()}`,
       role: 'assistant',
-      content: `${statusIcon} ${result.action.description}${result.error ? ` - Error: ${result.error.message}` : ''}`,
+      content: `${result.action.description}${result.error ? ` - Error: ${result.error.message}` : ''}`,
       timestamp: new Date().toISOString(),
       actionResult: result,
     };

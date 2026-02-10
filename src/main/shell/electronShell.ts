@@ -211,7 +211,25 @@ export class ElectronShell {
       throw new Error('Web view not initialized');
     }
 
+    // If a caller accidentally passes our internal app token, handle it gracefully
+    if (typeof url === 'string' && url === 'app:home') {
+      console.log('[ElectronShell] navigateToURL received app:home token, routing to navigateHome');
+      return this.navigateHome();
+    }
+
     await this.webView.webContents.loadURL(url);
+  }
+
+  /**
+   * Navigate back to the app homepage (assets/homepage.html)
+   */
+  public async navigateHome(): Promise<void> {
+    if (!this.webView) {
+      throw new Error('Web view not initialized');
+    }
+
+    const homepagePath = path.join(app.getAppPath(), 'assets', 'homepage.html');
+    await this.webView.webContents.loadFile(homepagePath);
   }
 
   /**

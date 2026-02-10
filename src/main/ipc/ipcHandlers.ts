@@ -41,8 +41,35 @@ export function registerIPCHandlers(
   // User navigates to URL
   ipcMain.on(IPC_CHANNELS.USER_NAVIGATE, (event, payload: NavigatePayload) => {
     console.log('Navigate to:', payload.url);
-    if (electronShell && electronShell.navigateToURL) {
+    if (!electronShell) {
+      console.error('Electron shell not available for navigation');
+      return;
+    }
+
+    // Support special app-* tokens to load packaged resources
+    if (typeof payload.url === 'string' && payload.url.startsWith('app:')) {
+      console.log('Detected app token navigation:', payload.url);
+      if (payload.url === 'app:home' && electronShell.navigateHome) {
+        electronShell.navigateHome();
+        return;
+      }
+      // Unknown app: token - log and ignore
+      console.warn('Unknown app token:', payload.url);
+      return;
+    }
+
+    if (electronShell.navigateToURL) {
       electronShell.navigateToURL(payload.url);
+    }
+  });
+
+  // Dedicated channel to navigate to packaged app homepage
+  ipcMain.on(IPC_CHANNELS.USER_NAVIGATE_HOME, () => {
+    console.log('Navigate to app homepage');
+    if (electronShell && electronShell.navigateHome) {
+      electronShell.navigateHome();
+    } else {
+      console.error('Electron shell or navigateHome not available');
     }
   });
 

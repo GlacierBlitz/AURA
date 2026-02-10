@@ -26,6 +26,7 @@ export interface ElectronAPI {
   // Send user actions to main process
   submitInstruction: (payload: UserInstructionPayload) => void;
   navigate: (payload: NavigatePayload) => void;
+  navigateHome?: () => void;
   saveApiKey: (payload: SaveApiKeyPayload) => void;
   toggleChatPanel?: (payload: ToggleChatPanelPayload) => void;
   goBack?: () => void;
@@ -60,6 +61,10 @@ const electronAPI: ElectronAPI = {
 
   navigate: (payload: NavigatePayload) => {
     ipcRenderer.send(IPC_CHANNELS.USER_NAVIGATE, payload);
+  },
+
+  navigateHome: () => {
+    ipcRenderer.send(IPC_CHANNELS.USER_NAVIGATE_HOME);
   },
 
   saveApiKey: (payload: SaveApiKeyPayload) => {

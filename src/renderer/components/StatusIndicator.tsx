@@ -7,7 +7,7 @@ export function StatusIndicator() {
   const statusLabels = {
     idle: 'Ready',
     extracting: 'Analyzing page...',
-    processing: 'Understanding your request...',
+    processing: 'Extracting request...',
     executing: 'Performing action...',
     error: 'Error occurred',
   };
