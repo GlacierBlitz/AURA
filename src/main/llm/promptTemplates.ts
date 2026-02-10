@@ -177,12 +177,17 @@ export function buildActionPrompt(
 ): string {
   let prompt = ACTION_PLAN_TEMPLATE;
 
+  // Add the actual user instruction
+  prompt += `\n\nUSER INSTRUCTION:\n"${userInstruction}"`;
+
   if (conversationHistory.length > 0) {
     prompt += `\n\nRECENT CONVERSATION:\n`;
     for (const msg of conversationHistory.slice(-3)) {
       prompt += `${msg.role}: ${msg.content}\n`;
     }
   }
+
+  prompt += `\n\nNow analyze the user's instruction and the page context to generate an appropriate action plan or clarification request.`;
 
   return prompt;
 }

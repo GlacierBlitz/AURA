@@ -4,6 +4,7 @@
   border-bottom: 1px solid var(--border);
   max-height: 300px;
   overflow-y: auto;
+  flex-shrink: 0;
 }
 
 .summary-title {
