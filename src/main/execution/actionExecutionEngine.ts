@@ -16,7 +16,9 @@ import type {
   TypeAction,
   NavigateAction,
   ScrollAction,
+  AccessibilityAction,
 } from '@shared/types';
+import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { ActionValidator, ValidationResult } from './actionValidator';
 import * as cdp from './cdpCommands';
 
@@ -34,6 +36,8 @@ export interface ExecutionConfig {
   waitForStabilization: boolean;
 }
 
+export type AccessibilityUpdateCallback = (settings: Partial<AccessibilitySettings>) => void;
+
 const DEFAULT_CONFIG: ExecutionConfig = {
   maxRetries: 3,
   timeoutMs: 10000,
@@ -42,9 +46,11 @@ const DEFAULT_CONFIG: ExecutionConfig = {
 
 export class ActionExecutionEngine {
   private validator: ActionValidator;
+  private accessibilityCallback?: AccessibilityUpdateCallback;
 
-  constructor() {
+  constructor(accessibilityCallback?: AccessibilityUpdateCallback) {
     this.validator = new ActionValidator();
+    this.accessibilityCallback = accessibilityCallback;
   }
 
   /**
@@ -141,6 +147,8 @@ export class ActionExecutionEngine {
         return this.executeNavigate(cdpSession, action as NavigateAction);
       case 'scroll':
         return this.executeScroll(cdpSession, action as ScrollAction);
+      case 'accessibility':
+        return this.executeAccessibility(cdpSession, action as AccessibilityAction);
       case 'select':
       case 'submit':
       case 'wait':
@@ -175,6 +183,30 @@ export class ActionExecutionEngine {
     console.log(`Executing SCROLL ${action.direction}`);
     const amount = typeof action.amount === 'number' ? action.amount : undefined;
     await cdp.scroll(cdpSession, action.direction, amount, action.container);
+  }
+
+  private async executeAccessibility(cdpSession: Protocol.ProtocolMapping.API, action: AccessibilityAction): Promise<void> {
+    console.log(`Executing ACCESSIBILITY: ${action.setting} = ${action.value}`);
+    
+    if (!this.accessibilityCallback) {
+      throw new Error('Accessibility callback not configured');
+    }
+
+    // Build the settings update object
+    const settingsUpdate: Partial<AccessibilitySettings> = {
+      [action.setting]: action.value
+    };
+
+    // If setting a profile, this will handle all the associated settings
+    if (action.setting === 'profile') {
+      settingsUpdate.profile = action.value as any;
+    }
+
+    // Call the callback to update settings
+    this.accessibilityCallback(settingsUpdate);
+
+    // Small delay to allow settings to apply
+    await this.delay(100);
   }
 
   // ─── Placeholder implementations for other actions ───────────

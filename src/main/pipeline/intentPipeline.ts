@@ -1,8 +1,9 @@
 import type { PageSummary, ActionPlanResponse, ClarificationResponse, ConversationTurn, ActionResult } from '@shared/types';
+import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { PageStateExtractor } from './pageStateExtractor';
 import { ContentSanitizer } from './contentSanitizer';
 import { LLMOrchestrator } from '../llm/llmOrchestrator';
-import { ActionExecutionEngine } from '../execution/actionExecutionEngine';
+import { ActionExecutionEngine, AccessibilityUpdateCallback } from '../execution/actionExecutionEngine';
 import { ContextManager } from './contextManager';
 
 /**
@@ -30,11 +31,11 @@ export class IntentPipeline {
   } | null = null;
   private readonly PAGE_STATE_CACHE_TTL = 5000; // 5 seconds
 
-  constructor(orchestrator: LLMOrchestrator) {
+  constructor(orchestrator: LLMOrchestrator, accessibilityCallback?: AccessibilityUpdateCallback) {
     this.extractor = new PageStateExtractor();
     this.sanitizer = new ContentSanitizer();
     this.orchestrator = orchestrator;
-    this.actionEngine = new ActionExecutionEngine();
+    this.actionEngine = new ActionExecutionEngine(accessibilityCallback);
     this.contextManager = new ContextManager();
   }
 

@@ -52,7 +52,8 @@ export type ActionType =
   | 'forward'
   | 'wait'
   | 'extract'
-  | 'summarize';
+  | 'summarize'
+  | 'accessibility';
 
 export interface BaseAction {
   action: ActionType;
@@ -122,6 +123,12 @@ export interface SummarizeAction extends BaseAction {
   action: 'summarize';
 }
 
+export interface AccessibilityAction extends BaseAction {
+  action: 'accessibility';
+  setting: 'fontSize' | 'lineSpacing' | 'highContrast' | 'colorFilter' | 'simplifyLayout' | 'profile';
+  value: number | boolean | string;
+}
+
 export type ActionDescriptor =
   | NavigateAction
   | ClickAction
@@ -133,7 +140,8 @@ export type ActionDescriptor =
   | ForwardAction
   | WaitAction
   | ExtractAction
-  | SummarizeAction;
+  | SummarizeAction
+  | AccessibilityAction;
 
 // ─── Extractable Attributes ─────────────────────────────────
 

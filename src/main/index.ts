@@ -26,7 +26,13 @@ const electronShell = new ElectronShell();
 // Instantiate LLM provider and pipeline
 const openaiAdapter = new OpenAIAdapter();
 const llmOrchestrator = new LLMOrchestrator(openaiAdapter);
-const intentPipeline = new IntentPipeline(llmOrchestrator);
+const intentPipeline = new IntentPipeline(
+  llmOrchestrator,
+  // Accessibility callback - updates settings via electronShell
+  (settings) => {
+    electronShell.updateAccessibilitySettings(settings as any);
+  }
+);
 
 // Instantiate Whisper service for voice transcription
 const whisperService = new WhisperService();

@@ -8,7 +8,7 @@
  * 4. Add unit tests in tests/unit/actionValidator.test.ts
  */
 
-import type { ActionDescriptor, NavigateAction, ClickAction, TypeAction, ScrollAction } from '@shared/types';
+import type { ActionDescriptor, NavigateAction, ClickAction, TypeAction, ScrollAction, AccessibilityAction } from '@shared/types';
 
 export interface ValidationResult {
   isValid: boolean;
@@ -50,10 +50,10 @@ export class ActionValidator {
   private validateSchema(action: ActionDescriptor): string[] {
     const errors: string[] = [];
 
-    // V-001: Action type must be one of 11 supported types
+    // V-001: Action type must be one of 12 supported types
     const validTypes = [
       'navigate', 'click', 'type', 'select', 'submit', 
-      'scroll', 'back', 'forward', 'wait', 'extract', 'summarize'
+      'scroll', 'back', 'forward', 'wait', 'extract', 'summarize', 'accessibility'
     ];
     if (!validTypes.includes(action.action)) {
       errors.push(`Invalid action type: ${action.action}`);
@@ -113,6 +113,49 @@ export class ActionValidator {
         // V-007: Enum value validation
         if (scrollAction.direction && !['up', 'down'].includes(scrollAction.direction)) {
           errors.push(`Invalid scroll direction: ${scrollAction.direction}`);
+        }
+        break;
+      
+      case 'accessibility':
+        const accessibilityAction = action as AccessibilityAction;
+        if (!accessibilityAction.setting) {
+          errors.push('ACCESSIBILITY action missing required field: setting');
+        }
+        if (accessibilityAction.value === undefined || accessibilityAction.value === null) {
+          errors.push('ACCESSIBILITY action missing required field: value');
+        }
+        // Validate setting and value types
+        const validSettings = ['fontSize', 'lineSpacing', 'highContrast', 'colorFilter', 'simplifyLayout', 'profile'];
+        if (accessibilityAction.setting && !validSettings.includes(accessibilityAction.setting)) {
+          errors.push(`Invalid accessibility setting: ${accessibilityAction.setting}`);
+        }
+        // Type validation
+        if (accessibilityAction.setting === 'fontSize' || accessibilityAction.setting === 'lineSpacing') {
+          if (typeof accessibilityAction.value !== 'number') {
+            errors.push(`${accessibilityAction.setting} value must be a number`);
+          } else {
+            // Range validation
+            if (accessibilityAction.setting === 'fontSize' && (accessibilityAction.value < 50 || accessibilityAction.value > 300)) {
+              errors.push('fontSize must be between 50 and 300');
+            }
+            if (accessibilityAction.setting === 'lineSpacing' && (accessibilityAction.value < 1.0 || accessibilityAction.value > 3.0)) {
+              errors.push('lineSpacing must be between 1.0 and 3.0');
+            }
+          }
+        } else if (accessibilityAction.setting === 'highContrast' || accessibilityAction.setting === 'simplifyLayout') {
+          if (typeof accessibilityAction.value !== 'boolean') {
+            errors.push(`${accessibilityAction.setting} value must be a boolean`);
+          }
+        } else if (accessibilityAction.setting === 'colorFilter') {
+          const validFilters = ['none', 'protanopia', 'deuteranopia', 'tritanopia', 'grayscale'];
+          if (typeof accessibilityAction.value !== 'string' || !validFilters.includes(accessibilityAction.value)) {
+            errors.push(`colorFilter value must be one of: ${validFilters.join(', ')}`);
+          }
+        } else if (accessibilityAction.setting === 'profile') {
+          const validProfiles = ['default', 'high-contrast', 'large-text', 'color-blind', 'simplified', 'custom'];
+          if (typeof accessibilityAction.value !== 'string' || !validProfiles.includes(accessibilityAction.value)) {
+            errors.push(`profile value must be one of: ${validProfiles.join(', ')}`);
+          }
         }
         break;
     }
