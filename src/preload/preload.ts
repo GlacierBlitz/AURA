@@ -4,6 +4,10 @@ import type {
   NavigatePayload,
   SaveApiKeyPayload,
   ToggleChatPanelPayload,
+  UpdateAccessibilityPayload,
+  SetModalOpenPayload,
+  TranscribeAudioPayload,
+  TranscribeAudioResponse,
   PipelineSummaryPayload,
   PipelineStatusPayload,
   PipelineMessagePayload,
@@ -22,6 +26,12 @@ export interface ElectronAPI {
   navigate: (payload: NavigatePayload) => void;
   saveApiKey: (payload: SaveApiKeyPayload) => void;
   toggleChatPanel?: (payload: ToggleChatPanelPayload) => void;
+  goBack?: () => void;
+  goForward?: () => void;
+  refresh?: () => void;
+  updateAccessibility?: (payload: UpdateAccessibilityPayload) => void;
+  setModalOpen?: (payload: SetModalOpenPayload) => void;
+  transcribeAudio?: (payload: TranscribeAudioPayload) => Promise<TranscribeAudioResponse>;
 
   // Listen for pipeline events from main process
   onPipelineSummary: (callback: (payload: PipelineSummaryPayload) => void) => () => void;
@@ -55,6 +65,30 @@ const electronAPI: ElectronAPI = {
 
   toggleChatPanel: (payload: ToggleChatPanelPayload) => {
     ipcRenderer.send(IPC_CHANNELS.USER_TOGGLE_CHAT_PANEL, payload);
+  },
+
+  goBack: () => {
+    ipcRenderer.send(IPC_CHANNELS.USER_GO_BACK);
+  },
+
+  goForward: () => {
+    ipcRenderer.send(IPC_CHANNELS.USER_GO_FORWARD);
+  },
+
+  refresh: () => {
+    ipcRenderer.send(IPC_CHANNELS.USER_REFRESH);
+  },
+
+  updateAccessibility: (payload: UpdateAccessibilityPayload) => {
+    ipcRenderer.send(IPC_CHANNELS.USER_UPDATE_ACCESSIBILITY, payload);
+  },
+
+  setModalOpen: (payload: SetModalOpenPayload) => {
+    ipcRenderer.send(IPC_CHANNELS.USER_SET_MODAL_OPEN, payload);
+  },
+
+  transcribeAudio: (payload: TranscribeAudioPayload): Promise<TranscribeAudioResponse> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.USER_TRANSCRIBE_AUDIO, payload);
   },
 
   // Main to Renderer listeners

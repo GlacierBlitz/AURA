@@ -7,17 +7,23 @@ import type {
   NavigatePayload,
   SaveApiKeyPayload,
   ToggleChatPanelPayload,
+  UpdateAccessibilityPayload,
+  SetModalOpenPayload,
+  TranscribeAudioPayload,
+  TranscribeAudioResponse,
 } from '@shared/types';
 
 let electronShell: any = null;
 let configureLLMCallback: ((apiKey: string) => void) | null = null;
+let whisperService: any = null;
 
 /**
  * Register all IPC channel handlers
  */
-export function registerIPCHandlers(shell?: any, configCallback?: (apiKey: string) => void): void {
+export function registerIPCHandlers(shell?: any, configCallback?: (apiKey: string) => void, whisper?: any): void {
   electronShell = shell;
   configureLLMCallback = configCallback;
+  whisperService = whisper;
 
   // User navigates to URL
   ipcMain.on(IPC_CHANNELS.USER_NAVIGATE, (event, payload: NavigatePayload) => {
@@ -40,6 +46,64 @@ export function registerIPCHandlers(shell?: any, configCallback?: (apiKey: strin
     console.log('Toggle chat panel:', payload.visible);
     if (electronShell && electronShell.updateBrowserViewBounds) {
       electronShell.updateBrowserViewBounds(payload.visible);
+    }
+  });
+
+  // User goes back
+  ipcMain.on(IPC_CHANNELS.USER_GO_BACK, () => {
+    console.log('Go back');
+    if (electronShell && electronShell.goBack) {
+      electronShell.goBack();
+    }
+  });
+
+  // User goes forward
+  ipcMain.on(IPC_CHANNELS.USER_GO_FORWARD, () => {
+    console.log('Go forward');
+    if (electronShell && electronShell.goForward) {
+      electronShell.goForward();
+    }
+  });
+
+  // User refreshes page
+  ipcMain.on(IPC_CHANNELS.USER_REFRESH, () => {
+    console.log('Refresh page');
+    if (electronShell && electronShell.refresh) {
+      electronShell.refresh();
+    }
+  });
+
+  // User updates accessibility settings
+  ipcMain.on(IPC_CHANNELS.USER_UPDATE_ACCESSIBILITY, (event, payload: UpdateAccessibilityPayload) => {
+    console.log('Update accessibility settings:', payload);
+    if (electronShell && electronShell.updateAccessibilitySettings) {
+      electronShell.updateAccessibilitySettings(payload);
+    }
+  });
+
+  // User opens/closes modal (hide/show BrowserView)
+  ipcMain.on(IPC_CHANNELS.USER_SET_MODAL_OPEN, (event, payload: SetModalOpenPayload) => {
+    console.log('Set modal open:', payload.isOpen);
+    if (electronShell && electronShell.setBrowserViewVisible) {
+      electronShell.setBrowserViewVisible(!payload.isOpen);
+    }
+  });
+
+  // User requests audio transcription
+  ipcMain.handle(IPC_CHANNELS.USER_TRANSCRIBE_AUDIO, async (event, payload: TranscribeAudioPayload): Promise<TranscribeAudioResponse> => {
+    console.log('Received audio transcription request, size:', payload.audioData.length);
+    
+    if (!whisperService) {
+      return { error: 'Whisper service not available' };
+    }
+
+    try {
+      const audioData = new Uint8Array(payload.audioData);
+      const text = await whisperService.transcribe(audioData, payload.mimeType);
+      return { text };
+    } catch (error: any) {
+      console.error('Transcription error:', error);
+      return { error: error.message || 'Failed to transcribe audio' };
     }
   });
 

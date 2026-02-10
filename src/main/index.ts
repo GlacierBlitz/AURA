@@ -1,9 +1,10 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, session } from 'electron';
 import { ElectronShell } from './shell/electronShell';
 import { registerIPCHandlers, sendToRenderer } from './ipc/ipcHandlers';
 import { IntentPipeline } from './pipeline/intentPipeline';
 import { LLMOrchestrator } from './llm/llmOrchestrator';
 import { OpenAIAdapter } from './llm/providers/openaiAdapter';
+import { WhisperService } from './services/whisperService';
 import { LLM_CONFIG } from '@shared/constants';
 import { IPC_CHANNELS } from '@shared/types';
 import type { PipelineSummaryPayload, PipelineStatusPayload } from '@shared/types';
@@ -20,6 +21,9 @@ const openaiAdapter = new OpenAIAdapter();
 const llmOrchestrator = new LLMOrchestrator(openaiAdapter);
 const intentPipeline = new IntentPipeline(llmOrchestrator);
 
+// Instantiate Whisper service for voice transcription
+const whisperService = new WhisperService();
+
 // Auto-configure LLM provider with API key from environment
 const apiKey = process.env.OPENAI_API_KEY;
 if (apiKey) {
@@ -30,7 +34,9 @@ if (apiKey) {
     maxTokens: LLM_CONFIG.DEFAULT_MAX_TOKENS,
     temperature: LLM_CONFIG.DEFAULT_TEMPERATURE,
   });
-  console.log('LLM provider auto-configured from environment');
+  // Also configure Whisper service with same API key
+  whisperService.configure(apiKey);
+  console.log('LLM provider and Whisper service auto-configured from environment');
 } else {
   console.warn('⚠️  OPENAI_API_KEY not found in environment variables. Please set it in .env file.');
 }
@@ -97,8 +103,34 @@ async function createWindow() {
  */
 async function initialize() {
   try {
+    // Set up permissions for microphone (for voice input)
+    session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+      const url = webContents.getURL();
+      console.log('Permission request for:', permission, 'from:', url);
+      
+      // Allow all media permissions for our app's renderer
+      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture') {
+        console.log('Granting permission:', permission);
+        callback(true);
+        return;
+      }
+      
+      console.log('Denying permission:', permission);
+      callback(false);
+    });
+
+    // Also handle permission check (not just request)
+    session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+      console.log('Permission check for:', permission);
+      // Allow media permissions
+      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture') {
+        return true;
+      }
+      return false;
+    });
+
     // Register IPC handlers with references to shell and config function
-    registerIPCHandlers(electronShell, configureLLMProvider);
+    registerIPCHandlers(electronShell, configureLLMProvider, whisperService);
 
     // Create the main window
     await createWindow();

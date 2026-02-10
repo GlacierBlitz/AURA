@@ -5,9 +5,10 @@ interface NavigationBarProps {
   onNavigate?: (url: string) => void;
   onToggleChat?: () => void;
   showChat?: boolean;
+  onOpenAccessibility?: () => void;
 }
 
-export function NavigationBar({ onNavigate, onToggleChat, showChat }: NavigationBarProps) {
+export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccessibility }: NavigationBarProps) {
   const [url, setUrl] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -20,8 +21,52 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat }: Navigation
     }
   };
 
+  const handleBack = () => {
+    if (window.electronAPI) {
+      window.electronAPI.goBack?.();
+    }
+  };
+
+  const handleForward = () => {
+    if (window.electronAPI) {
+      window.electronAPI.goForward?.();
+    }
+  };
+
+  const handleRefresh = () => {
+    if (window.electronAPI) {
+      window.electronAPI.refresh?.();
+    }
+  };
+
   return (
     <nav className="navigation-bar" role="navigation" aria-label="Website navigation">
+      <div className="nav-controls">
+        <button
+          className="nav-control-button"
+          onClick={handleBack}
+          aria-label="Go back"
+          title="Go back"
+        >
+          ←
+        </button>
+        <button
+          className="nav-control-button"
+          onClick={handleForward}
+          aria-label="Go forward"
+          title="Go forward"
+        >
+          →
+        </button>
+        <button
+          className="nav-control-button"
+          onClick={handleRefresh}
+          aria-label="Refresh page"
+          title="Refresh page"
+        >
+          ⟳
+        </button>
+      </div>
       <form onSubmit={handleSubmit} className="url-form">
         <label htmlFor="url-input" className="sr-only">
           Enter website URL
@@ -36,6 +81,16 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat }: Navigation
           aria-label="Website URL"
         />
       </form>
+      {onOpenAccessibility && (
+        <button
+          className="accessibility-nav-button"
+          onClick={onOpenAccessibility}
+          aria-label="Open accessibility settings"
+          title="Accessibility"
+        >
+          ♿
+        </button>
+      )}
       {onToggleChat && (
         <button
           className="chat-toggle-nav-button"
