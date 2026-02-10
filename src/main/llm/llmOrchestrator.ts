@@ -12,17 +12,34 @@ import { LLM_CONFIG } from '@shared/constants';
 import type { LLMProviderAdapter } from './llmProviderAdapter';
 import { SYSTEM_PROMPT, buildSummaryPrompt, buildActionPrompt } from './promptTemplates';
 import { ContentSanitizer } from '../pipeline/contentSanitizer';
+import { getLLMCache, type LLMCache } from './llmCache';
 
 /**
  * LLMOrchestrator manages LLM interactions for summarization and action planning.
  * Handles prompt construction, response parsing, and validation.
+ * Includes automatic caching to reduce API calls.
  */
 export class LLMOrchestrator {
   private provider: LLMProviderAdapter;
+  private cache: LLMCache | null = null;
   private static readonly MAX_PROMPT_TOKENS = 20000; // Conservative limit for page context
 
   constructor(provider: LLMProviderAdapter) {
     this.provider = provider;
+    // Initialize cache asynchronously
+    this.initializeCache();
+  }
+
+  /**
+   * Initialize the LLM cache
+   */
+  private async initializeCache(): Promise<void> {
+    try {
+      this.cache = await getLLMCache();
+      console.log('[LLMOrchestrator] LLM cache initialized');
+    } catch (error) {
+      console.error('[LLMOrchestrator] Failed to initialize cache:', error);
+    }
   }
 
   /**
@@ -62,6 +79,24 @@ export class LLMOrchestrator {
     };
 
     try {
+      // Check cache first
+      if (this.cache) {
+        const cachedResponse = await this.cache.get(prompt);
+        if (cachedResponse) {
+          console.log('[LLMOrchestrator] Using cached summary response');
+          const parsedResponse = this.parseSummaryResponse(cachedResponse.content);
+          this.validateSummaryResponse(parsedResponse);
+          return {
+            purpose: parsedResponse.summary.purpose,
+            sections: parsedResponse.summary.sections,
+            availableActions: parsedResponse.summary.availableActions,
+            accessibilityNotes: parsedResponse.summary.accessibilityNotes,
+            confidence: cachedResponse.confidence,
+            generatedAt: Date.now(),
+          };
+        }
+      }
+
       // Send to LLM
       const response: LLMResponse = await this.provider.sendMessage(prompt);
 
@@ -87,6 +122,11 @@ export class LLMOrchestrator {
         confidence: response.confidence,
         generatedAt: Date.now(),
       };
+
+      // Store in cache for future use
+      if (this.cache) {
+        await this.cache.set(prompt, response);
+      }
 
       return summary;
     } catch (error: any) {
@@ -141,6 +181,21 @@ export class LLMOrchestrator {
     };
 
     try {
+      // Check cache first
+      if (this.cache) {
+        const cachedResponse = await this.cache.get(prompt);
+        if (cachedResponse) {
+          console.log('[LLMOrchestrator] Using cached action plan response');
+          const parsedResponse = this.parseActionResponse(cachedResponse.content);
+          if (parsedResponse.type === 'action-plan') {
+            this.validateActionPlanResponse(parsedResponse);
+          } else {
+            this.validateClarificationResponse(parsedResponse);
+          }
+          return parsedResponse;
+        }
+      }
+
       // Send to LLM
       const response: LLMResponse = await this.provider.sendMessage(prompt);
 
@@ -159,6 +214,11 @@ export class LLMOrchestrator {
         this.validateActionPlanResponse(parsedResponse);
       } else {
         this.validateClarificationResponse(parsedResponse);
+      }
+
+      // Store in cache for future use
+      if (this.cache) {
+        await this.cache.set(prompt, response);
       }
 
       return parsedResponse;
@@ -333,5 +393,29 @@ export class LLMOrchestrator {
    */
   getTokenUsage() {
     return this.provider.getTokenUsage();
+  }
+
+  /**
+   * Get LLM cache statistics
+   */
+  async getCacheStats(): Promise<{
+    size: number;
+    memorySizeKb: number;
+    oldestEntry: number | null;
+    newestEntry: number | null;
+  }> {
+    if (!this.cache) {
+      return { size: 0, memorySizeKb: 0, oldestEntry: null, newestEntry: null };
+    }
+    return this.cache.getStats();
+  }
+
+  /**
+   * Clear the LLM cache
+   */
+  async clearCache(): Promise<void> {
+    if (this.cache) {
+      await this.cache.clear();
+    }
   }
 }
