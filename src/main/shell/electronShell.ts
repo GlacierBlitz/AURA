@@ -20,6 +20,7 @@ export class ElectronShell {
   private chatPanelVisible: boolean = true;
   private currentAccessibilitySettings: AccessibilitySettings | null = null;
   private accessibilityCssKey: string | null = null;
+  private suggestionsVisible: boolean = false;
 
   constructor() {}
 
@@ -358,6 +359,16 @@ export class ElectronShell {
       width: width - chatPanelWidth,
       height: height - 60,
     });
+  }
+
+  /**
+   * Set suggestions dropdown visibility (hide BrowserView to allow clicking)
+   */
+  public setSuggestionsVisible(visible: boolean): void {
+    this.suggestionsVisible = visible;
+    // Hide the BrowserView entirely when suggestions are shown
+    // This allows React dropdown clicks to work
+    this.setBrowserViewVisible(!visible);
   }
 
   /**

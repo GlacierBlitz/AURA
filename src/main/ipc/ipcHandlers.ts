@@ -11,12 +11,16 @@ import type {
   SetModalOpenPayload,
   TranscribeAudioPayload,
   TranscribeAudioResponse,
+  AutocompletePayload,
+  AutocompleteResponse,
+  SetSuggestionsVisiblePayload,
 } from '@shared/types';
 
 let electronShell: any = null;
 let configureLLMCallback: ((apiKey: string) => void) | null = null;
 let whisperService: any = null;
 let intentPipeline: any = null;
+let serpService: any = null;
 
 /**
  * Register all IPC channel handlers
@@ -25,12 +29,14 @@ export function registerIPCHandlers(
   shell?: any,
   configCallback?: (apiKey: string) => void,
   whisper?: any,
-  pipeline?: any
+  pipeline?: any,
+  serp?: any
 ): void {
   electronShell = shell;
   configureLLMCallback = configCallback;
   whisperService = whisper;
   intentPipeline = pipeline;
+  serpService = serp;
 
   // User navigates to URL
   ipcMain.on(IPC_CHANNELS.USER_NAVIGATE, (event, payload: NavigatePayload) => {
@@ -154,6 +160,31 @@ export function registerIPCHandlers(
   ipcMain.on(IPC_CHANNELS.LOG_QUERY, (event, payload: LogQueryPayload) => {
     console.log('Received log query:', payload);
     // TODO: Forward to ActionLogger in Phase 4
+  });
+
+  // User requests search autocomplete suggestions
+  ipcMain.handle(IPC_CHANNELS.USER_AUTOCOMPLETE, async (event, payload: AutocompletePayload): Promise<AutocompleteResponse> => {
+    console.log('Received autocomplete request for:', payload.query);
+    
+    if (!serpService) {
+      return { suggestions: [], error: 'SERP service not available' };
+    }
+
+    try {
+      const response = await serpService.getAutocomplete(payload.query);
+      return response;
+    } catch (error: any) {
+      console.error('Autocomplete error:', error);
+      return { suggestions: [], error: error.message || 'Failed to fetch suggestions' };
+    }
+  });
+
+  // User sets suggestions visibility (hides BrowserView to allow clicking suggestions)
+  ipcMain.handle(IPC_CHANNELS.USER_SET_SUGGESTIONS_VISIBLE, (event, payload: SetSuggestionsVisiblePayload) => {
+    console.log('Set suggestions visible:', payload.visible);
+    if (electronShell && electronShell.setSuggestionsVisible) {
+      electronShell.setSuggestionsVisible(payload.visible);
+    }
   });
 
   console.log('IPC handlers registered successfully');

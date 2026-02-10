@@ -8,6 +8,8 @@ import type {
   SetModalOpenPayload,
   TranscribeAudioPayload,
   TranscribeAudioResponse,
+  AutocompletePayload,
+  AutocompleteResponse,
   PipelineSummaryPayload,
   PipelineStatusPayload,
   PipelineMessagePayload,
@@ -32,6 +34,7 @@ export interface ElectronAPI {
   updateAccessibility?: (payload: UpdateAccessibilityPayload) => void;
   setModalOpen?: (payload: SetModalOpenPayload) => void;
   transcribeAudio?: (payload: TranscribeAudioPayload) => Promise<TranscribeAudioResponse>;
+  invoke?: (channel: string, payload: any) => Promise<any>;
 
   // Listen for pipeline events from main process
   onPipelineSummary: (callback: (payload: PipelineSummaryPayload) => void) => () => void;
@@ -89,6 +92,10 @@ const electronAPI: ElectronAPI = {
 
   transcribeAudio: (payload: TranscribeAudioPayload): Promise<TranscribeAudioResponse> => {
     return ipcRenderer.invoke(IPC_CHANNELS.USER_TRANSCRIBE_AUDIO, payload);
+  },
+
+  invoke: (channel: string, payload: any): Promise<any> => {
+    return ipcRenderer.invoke(channel, payload);
   },
 
   // Main to Renderer listeners
