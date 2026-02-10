@@ -62,11 +62,14 @@ export const EXECUTION_CONFIG = {
 // ─── TTS Configuration ──────────────────────────────────────
 
 export const TTS_CONFIG = {
-  DEFAULT_RATE: 1.0,
-  DEFAULT_PITCH: 1.0,
-  DEFAULT_VOLUME: 1.0,
+  DEFAULT_RATE: 0.95,
+  DEFAULT_PITCH: 0.9,
+  DEFAULT_VOLUME: 0.9,
   AUTO_READ_SUMMARIES: true,
   AUTO_READ_MESSAGES: false,
+  // Add voice quality preferences
+  PREFER_FEMALE: true,     // Most systems have better female voices
+  PREFER_GOOGLE_VOICES: true, // Prefer Google voices if available
 } as const;
 
 // ─── Logging Configuration ──────────────────────────────────
