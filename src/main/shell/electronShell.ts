@@ -49,10 +49,9 @@ export class ElectronShell {
     // Create the BrowserView for target websites
     await this.createWebView();
 
-    // Show window when ready
-    this.mainWindow.once('ready-to-show', () => {
-      this.mainWindow?.show();
-    });
+    // Show window immediately after creating webview and bring to front
+    this.mainWindow.show();
+    this.mainWindow.focus();
 
     // Clean up on close
     this.mainWindow.on('closed', () => {
