@@ -158,6 +158,10 @@ export class ElectronShell {
 
     // Initialize CDP session
     await this.initializeCDPSession();
+
+    // Load homepage by default
+    const homepagePath = path.join(app.getAppPath(), 'assets', 'homepage.html');
+    await this.webView.webContents.loadFile(homepagePath);
   }
 
   /**

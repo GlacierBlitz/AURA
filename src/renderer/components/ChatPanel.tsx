@@ -47,7 +47,7 @@ export function ChatPanel() {
   return (
     <div className="chat-panel" role="region" aria-label="Chat interface">
       <div className="chat-header">
-        <h1 className="chat-title">BeyondBinary Assistant</h1>
+        <h1 className="chat-title">AURA Assistant</h1>
         <StatusIndicator />
       </div>
 
