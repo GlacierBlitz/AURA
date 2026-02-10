@@ -4,6 +4,10 @@ import type {
   NavigatePayload,
   SaveApiKeyPayload,
   ToggleChatPanelPayload,
+  UpdateAccessibilityPayload,
+  SetModalOpenPayload,
+  TranscribeAudioPayload,
+  TranscribeAudioResponse,
   PipelineSummaryPayload,
   PipelineStatusPayload,
   PipelineMessagePayload,
@@ -25,6 +29,9 @@ export interface ElectronAPI {
   goBack?: () => void;
   goForward?: () => void;
   refresh?: () => void;
+  updateAccessibility?: (payload: UpdateAccessibilityPayload) => void;
+  setModalOpen?: (payload: SetModalOpenPayload) => void;
+  transcribeAudio?: (payload: TranscribeAudioPayload) => Promise<TranscribeAudioResponse>;
 
   // Listen for pipeline events from main process
   onPipelineSummary: (callback: (payload: PipelineSummaryPayload) => void) => () => void;
@@ -70,6 +77,18 @@ const electronAPI: ElectronAPI = {
 
   refresh: () => {
     ipcRenderer.send(IPC_CHANNELS.USER_REFRESH);
+  },
+
+  updateAccessibility: (payload: UpdateAccessibilityPayload) => {
+    ipcRenderer.send(IPC_CHANNELS.USER_UPDATE_ACCESSIBILITY, payload);
+  },
+
+  setModalOpen: (payload: SetModalOpenPayload) => {
+    ipcRenderer.send(IPC_CHANNELS.USER_SET_MODAL_OPEN, payload);
+  },
+
+  transcribeAudio: (payload: TranscribeAudioPayload): Promise<TranscribeAudioResponse> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.USER_TRANSCRIBE_AUDIO, payload);
   },
 
   // Main to Renderer listeners

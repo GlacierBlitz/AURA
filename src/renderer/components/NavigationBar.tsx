@@ -5,9 +5,10 @@ interface NavigationBarProps {
   onNavigate?: (url: string) => void;
   onToggleChat?: () => void;
   showChat?: boolean;
+  onOpenAccessibility?: () => void;
 }
 
-export function NavigationBar({ onNavigate, onToggleChat, showChat }: NavigationBarProps) {
+export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccessibility }: NavigationBarProps) {
   const [url, setUrl] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -80,6 +81,16 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat }: Navigation
           aria-label="Website URL"
         />
       </form>
+      {onOpenAccessibility && (
+        <button
+          className="accessibility-nav-button"
+          onClick={onOpenAccessibility}
+          aria-label="Open accessibility settings"
+          title="Accessibility"
+        >
+          ♿
+        </button>
+      )}
       {onToggleChat && (
         <button
           className="chat-toggle-nav-button"

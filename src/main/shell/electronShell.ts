@@ -2,6 +2,8 @@ import { BrowserWindow, BrowserView, app, session } from 'electron';
 import { APP_CONFIG } from '@shared/constants';
 import path from 'path';
 import type Protocol from 'devtools-protocol';
+import type { AccessibilitySettings } from '@shared/types/accessibility';
+import { generateAccessibilityCSS } from '../services/accessibilityService';
 
 // Vite dev server URL and name injected by @electron-forge/plugin-vite
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string | undefined;
@@ -16,6 +18,8 @@ export class ElectronShell {
   private lastProcessedUrl: string = '';
   private pageLoadDebounceTimer: NodeJS.Timeout | null = null;
   private chatPanelVisible: boolean = true;
+  private currentAccessibilitySettings: AccessibilitySettings | null = null;
+  private accessibilityCssKey: string | null = null;
 
   constructor() {}
 
@@ -33,7 +37,8 @@ export class ElectronShell {
         preload: path.join(__dirname, 'preload.js'),
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
+        sandbox: false, // Disable sandbox to allow Web Speech API network requests
+        webSecurity: true,
       },
       show: false, // Don't show until ready
     });
@@ -111,11 +116,18 @@ export class ElectronShell {
 
     // Set up navigation listeners
     this.webView.webContents.on('did-navigate', (_event, url) => {
+      // Clear CSS key since page is reloading - old key is invalid
+      this.accessibilityCssKey = null;
       this.notifyNavigation(url);
     });
 
     this.webView.webContents.on('did-navigate-in-page', (_event, url) => {
       this.notifyNavigation(url);
+    });
+
+    this.webView.webContents.on('dom-ready', () => {
+      // Re-apply accessibility settings when DOM is ready
+      this.applyCurrentAccessibilitySettings();
     });
 
     this.webView.webContents.on('did-finish-load', () => {
@@ -138,9 +150,6 @@ export class ElectronShell {
 
     // Initialize CDP session
     await this.initializeCDPSession();
-
-    // Load a default page
-    await this.webView.webContents.loadURL('about:blank');
   }
 
   /**
@@ -228,6 +237,93 @@ export class ElectronShell {
     }
 
     this.webView.webContents.reload();
+  }
+
+  /**
+   * Update accessibility settings and apply CSS to webView
+   */
+  public updateAccessibilitySettings(settings: AccessibilitySettings): void {
+    if (!this.webView) {
+      console.error('Web view not initialized');
+      return;
+    }
+
+    // Store settings for re-injection on navigation
+    this.currentAccessibilitySettings = settings;
+    console.log('Stored accessibility settings:', settings);
+    
+    // Only reload if we have a real page loaded (not blank or empty)
+    const currentUrl = this.webView.webContents.getURL();
+    if (currentUrl && currentUrl !== 'about:blank' && !currentUrl.startsWith('devtools://')) {
+      console.log('Reloading page to apply new accessibility settings');
+      this.webView.webContents.reload();
+    } else {
+      // No page loaded yet, just apply settings for next navigation
+      console.log('No page loaded yet, settings will apply on next navigation');
+    }
+  }
+
+  /**
+   * Apply the current accessibility settings to the webView
+   * Called on navigation events to persist settings
+   */
+  private async applyCurrentAccessibilitySettings(): Promise<void> {
+    if (!this.webView || !this.currentAccessibilitySettings) {
+      return;
+    }
+
+    try {
+      const settings = this.currentAccessibilitySettings;
+      console.log('Applying accessibility CSS to page:', settings);
+      
+      // Always remove previous CSS if we have a key
+      if (this.accessibilityCssKey) {
+        try {
+          await this.webView.webContents.removeInsertedCSS(this.accessibilityCssKey);
+          console.log('Removed previous accessibility CSS with key:', this.accessibilityCssKey);
+        } catch (error) {
+          console.error('Failed to remove previous CSS:', error);
+        }
+        this.accessibilityCssKey = null;
+      }
+      
+      // If default profile, don't insert any CSS (page should be in original state)
+      if (settings.profile === 'default') {
+        console.log('Default profile - no CSS modifications applied');
+        return;
+      }
+      
+      const css = generateAccessibilityCSS(settings);
+      
+      // Only insert CSS if there are actual modifications
+      if (css.trim().length > 0) {
+        // Insert CSS into the page with user origin for high priority
+        this.accessibilityCssKey = await this.webView.webContents.insertCSS(css, { cssOrigin: 'user' });
+        console.log('Accessibility CSS applied successfully with key:', this.accessibilityCssKey);
+      } else {
+        console.log('No accessibility CSS to apply');
+      }
+    } catch (error) {
+      console.error('Error in applyCurrentAccessibilitySettings:', error);
+    }
+  }
+
+  /**
+   * Set BrowserView visibility (hide when modal is open)
+   */
+  public setBrowserViewVisible(visible: boolean): void {
+    if (!this.mainWindow || !this.webView) {
+      return;
+    }
+
+    if (visible) {
+      // Show the BrowserView
+      this.mainWindow.addBrowserView(this.webView);
+      this.updateBrowserViewBoundsInternal();
+    } else {
+      // Hide the BrowserView by removing it
+      this.mainWindow.removeBrowserView(this.webView);
+    }
   }
 
   /**

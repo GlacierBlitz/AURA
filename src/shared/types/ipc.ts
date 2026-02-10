@@ -1,5 +1,6 @@
 import type { ActionDescriptor, ActionResult, UserDecision } from './actions';
 import type { PageSummary } from './actions';
+import type { AccessibilitySettings } from './accessibility';
 
 // ─── IPC Channel Names ──────────────────────────────────────
 
@@ -12,6 +13,9 @@ export const IPC_CHANNELS = {
   USER_GO_BACK: 'user:go-back',
   USER_GO_FORWARD: 'user:go-forward',
   USER_REFRESH: 'user:refresh',
+  USER_UPDATE_ACCESSIBILITY: 'user:update-accessibility',
+  USER_SET_MODAL_OPEN: 'user:set-modal-open',
+  USER_TRANSCRIBE_AUDIO: 'user:transcribe-audio',
 
   // Main to Renderer
   PIPELINE_SUMMARY: 'pipeline:summary',
@@ -45,6 +49,12 @@ export interface SaveApiKeyPayload {
 
 export interface ToggleChatPanelPayload {
   visible: boolean;
+}
+
+export interface UpdateAccessibilityPayload extends AccessibilitySettings {}
+
+export interface SetModalOpenPayload {
+  isOpen: boolean;
 }
 
 export interface PipelineSummaryPayload {
@@ -118,4 +128,14 @@ export interface LogEntry {
   actions: ActionResult[];
   pageUrl: string;
   status: 'completed' | 'failed' | 'cancelled';
+}
+
+export interface TranscribeAudioPayload {
+  audioData: number[]; // Uint8Array converted to array for IPC
+  mimeType: string;
+}
+
+export interface TranscribeAudioResponse {
+  text?: string;
+  error?: string;
 }
