@@ -3,6 +3,7 @@ import type {
   UserInstructionPayload,
   NavigatePayload,
   SaveApiKeyPayload,
+  ToggleChatPanelPayload,
   PipelineSummaryPayload,
   PipelineStatusPayload,
   PipelineMessagePayload,
@@ -20,6 +21,7 @@ export interface ElectronAPI {
   submitInstruction: (payload: UserInstructionPayload) => void;
   navigate: (payload: NavigatePayload) => void;
   saveApiKey: (payload: SaveApiKeyPayload) => void;
+  toggleChatPanel?: (payload: ToggleChatPanelPayload) => void;
 
   // Listen for pipeline events from main process
   onPipelineSummary: (callback: (payload: PipelineSummaryPayload) => void) => () => void;
@@ -49,6 +51,10 @@ const electronAPI: ElectronAPI = {
 
   saveApiKey: (payload: SaveApiKeyPayload) => {
     ipcRenderer.send(IPC_CHANNELS.USER_SAVE_API_KEY, payload);
+  },
+
+  toggleChatPanel: (payload: ToggleChatPanelPayload) => {
+    ipcRenderer.send(IPC_CHANNELS.USER_TOGGLE_CHAT_PANEL, payload);
   },
 
   // Main to Renderer listeners

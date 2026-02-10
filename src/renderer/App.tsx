@@ -8,6 +8,7 @@ import './styles/global.css';
 
 export function App() {
   const [showSettings, setShowSettings] = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(true);
 
   // Initialize IPC listeners
   useIPC();
@@ -24,26 +25,27 @@ export function App() {
     }
   };
 
+  const toggleChatPanel = () => {
+    setShowChatPanel(!showChatPanel);
+    // Notify main process to resize the BrowserView
+    if (window.electronAPI) {
+      window.electronAPI.toggleChatPanel?.({ visible: !showChatPanel });
+    }
+  };
+
   return (
     <div className="app-container">
-      <NavigationBar onNavigate={handleNavigate} />
+      <NavigationBar onNavigate={handleNavigate} onToggleChat={toggleChatPanel} showChat={showChatPanel} />
       
       <div className="app-main">
         <div className="content-area">
           {/* Chat panel on the right */}
-          <div className="chat-area">
-            <div className="settings-button-container">
-              <button
-                className="settings-button"
-                onClick={() => setShowSettings(true)}
-                aria-label="Open settings"
-              >
-                ⚙️ Settings
-              </button>
+          {showChatPanel && (
+            <div className="chat-area">
+              <SummaryDisplay />
+              <ChatPanel />
             </div>
-            <SummaryDisplay />
-            <ChatPanel />
-          </div>
+          )}
         </div>
       </div>
 

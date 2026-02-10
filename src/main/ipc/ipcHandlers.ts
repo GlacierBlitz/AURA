@@ -6,6 +6,7 @@ import type {
   LogQueryPayload,
   NavigatePayload,
   SaveApiKeyPayload,
+  ToggleChatPanelPayload,
 } from '@shared/types';
 
 let electronShell: any = null;
@@ -31,6 +32,14 @@ export function registerIPCHandlers(shell?: any, configCallback?: (apiKey: strin
     console.log('Saving API key for provider:', payload.provider);
     if (configureLLMCallback) {
       configureLLMCallback(payload.apiKey);
+    }
+  });
+
+  // User toggles chat panel
+  ipcMain.on(IPC_CHANNELS.USER_TOGGLE_CHAT_PANEL, (event, payload: ToggleChatPanelPayload) => {
+    console.log('Toggle chat panel:', payload.visible);
+    if (electronShell && electronShell.updateBrowserViewBounds) {
+      electronShell.updateBrowserViewBounds(payload.visible);
     }
   });
 

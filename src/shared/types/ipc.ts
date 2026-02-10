@@ -8,6 +8,7 @@ export const IPC_CHANNELS = {
   USER_SUBMIT_INSTRUCTION: 'user:submit-instruction',
   USER_NAVIGATE: 'user:navigate',
   USER_SAVE_API_KEY: 'user:save-api-key',
+  USER_TOGGLE_CHAT_PANEL: 'user:toggle-chat-panel',
 
   // Main to Renderer
   PIPELINE_SUMMARY: 'pipeline:summary',
@@ -37,6 +38,10 @@ export interface NavigatePayload {
 export interface SaveApiKeyPayload {
   apiKey: string;
   provider: 'openai' | 'anthropic' | 'google';
+}
+
+export interface ToggleChatPanelPayload {
+  visible: boolean;
 }
 
 export interface PipelineSummaryPayload {

@@ -15,6 +15,7 @@ export class ElectronShell {
   private pageLoadCallbacks: Array<(url: string, title: string) => void> = [];
   private lastProcessedUrl: string = '';
   private pageLoadDebounceTimer: NodeJS.Timeout | null = null;
+  private chatPanelVisible: boolean = true;
 
   constructor() {}
 
@@ -97,9 +98,15 @@ export class ElectronShell {
       height: height - 60,
     });
 
-    this.webView.setAutoResize({
-      width: true,
-      height: true,
+    // Don't use setAutoResize - we'll handle it manually to avoid covering the nav bar
+    // this.webView.setAutoResize({
+    //   width: true,
+    //   height: true,
+    // });
+
+    // Handle window resize to keep BrowserView bounds correct
+    this.mainWindow.on('resize', () => {
+      this.updateBrowserViewBoundsInternal();
     });
 
     // Set up navigation listeners
@@ -184,6 +191,33 @@ export class ElectronShell {
     }
 
     await this.webView.webContents.loadURL(url);
+  }
+
+  /**
+   * Update BrowserView bounds based on chat panel visibility
+   */
+  public updateBrowserViewBounds(chatPanelVisible: boolean): void {
+    this.chatPanelVisible = chatPanelVisible;
+    this.updateBrowserViewBoundsInternal();
+  }
+
+  /**
+   * Internal method to update BrowserView bounds
+   */
+  private updateBrowserViewBoundsInternal(): void {
+    if (!this.mainWindow || !this.webView) {
+      return;
+    }
+
+    const [width, height] = this.mainWindow.getSize();
+    const chatPanelWidth = this.chatPanelVisible ? APP_CONFIG.CHAT_PANEL_WIDTH : 0;
+
+    this.webView.setBounds({
+      x: 0,
+      y: 60, // Leave space for navigation bar
+      width: width - chatPanelWidth,
+      height: height - 60,
+    });
   }
 
   /**

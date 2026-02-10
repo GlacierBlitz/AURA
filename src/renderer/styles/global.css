@@ -76,25 +76,33 @@ textarea {
   flex-direction: column;
   height: 100vh;
   width: 100vw;
+  position: relative;
 }
 
 .app-main {
   flex: 1;
   display: flex;
   overflow: hidden;
+  position: relative;
 }
 
 .content-area {
   flex: 1;
   display: flex;
+  position: relative;
 }
 
 .chat-area {
+  position: fixed;
+  right: 0;
+  top: 60px;
+  bottom: 0;
   width: 400px;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--border);
   background: var(--surface);
+  z-index: 100;
 }
 
 .settings-button-container {

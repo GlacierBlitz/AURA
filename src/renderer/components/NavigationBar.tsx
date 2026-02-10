@@ -3,9 +3,11 @@ import '../styles/NavigationBar.css';
 
 interface NavigationBarProps {
   onNavigate?: (url: string) => void;
+  onToggleChat?: () => void;
+  showChat?: boolean;
 }
 
-export function NavigationBar({ onNavigate }: NavigationBarProps) {
+export function NavigationBar({ onNavigate, onToggleChat, showChat }: NavigationBarProps) {
   const [url, setUrl] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -33,10 +35,17 @@ export function NavigationBar({ onNavigate }: NavigationBarProps) {
           onChange={(e) => setUrl(e.target.value)}
           aria-label="Website URL"
         />
-        <button type="submit" className="nav-button" aria-label="Navigate to URL">
-          Go
-        </button>
       </form>
+      {onToggleChat && (
+        <button
+          className="chat-toggle-nav-button"
+          onClick={onToggleChat}
+          aria-label={showChat ? "Hide chat panel" : "Show chat panel"}
+          title={showChat ? "Hide chat panel" : "Show chat panel"}
+        >
+          {showChat ? '✕' : '💬'}
+        </button>
+      )}
     </nav>
   );
 }
