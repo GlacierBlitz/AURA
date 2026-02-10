@@ -9,6 +9,9 @@ export const IPC_CHANNELS = {
   USER_NAVIGATE: 'user:navigate',
   USER_SAVE_API_KEY: 'user:save-api-key',
   USER_TOGGLE_CHAT_PANEL: 'user:toggle-chat-panel',
+  USER_GO_BACK: 'user:go-back',
+  USER_GO_FORWARD: 'user:go-forward',
+  USER_REFRESH: 'user:refresh',
 
   // Main to Renderer
   PIPELINE_SUMMARY: 'pipeline:summary',

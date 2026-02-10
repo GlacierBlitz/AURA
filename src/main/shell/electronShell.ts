@@ -194,6 +194,43 @@ export class ElectronShell {
   }
 
   /**
+   * Go back in navigation history
+   */
+  public goBack(): void {
+    if (!this.webView) {
+      throw new Error('Web view not initialized');
+    }
+
+    if (this.webView.webContents.canGoBack()) {
+      this.webView.webContents.goBack();
+    }
+  }
+
+  /**
+   * Go forward in navigation history
+   */
+  public goForward(): void {
+    if (!this.webView) {
+      throw new Error('Web view not initialized');
+    }
+
+    if (this.webView.webContents.canGoForward()) {
+      this.webView.webContents.goForward();
+    }
+  }
+
+  /**
+   * Refresh the current page
+   */
+  public refresh(): void {
+    if (!this.webView) {
+      throw new Error('Web view not initialized');
+    }
+
+    this.webView.webContents.reload();
+  }
+
+  /**
    * Update BrowserView bounds based on chat panel visibility
    */
   public updateBrowserViewBounds(chatPanelVisible: boolean): void {

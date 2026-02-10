@@ -22,6 +22,9 @@ export interface ElectronAPI {
   navigate: (payload: NavigatePayload) => void;
   saveApiKey: (payload: SaveApiKeyPayload) => void;
   toggleChatPanel?: (payload: ToggleChatPanelPayload) => void;
+  goBack?: () => void;
+  goForward?: () => void;
+  refresh?: () => void;
 
   // Listen for pipeline events from main process
   onPipelineSummary: (callback: (payload: PipelineSummaryPayload) => void) => () => void;
@@ -55,6 +58,18 @@ const electronAPI: ElectronAPI = {
 
   toggleChatPanel: (payload: ToggleChatPanelPayload) => {
     ipcRenderer.send(IPC_CHANNELS.USER_TOGGLE_CHAT_PANEL, payload);
+  },
+
+  goBack: () => {
+    ipcRenderer.send(IPC_CHANNELS.USER_GO_BACK);
+  },
+
+  goForward: () => {
+    ipcRenderer.send(IPC_CHANNELS.USER_GO_FORWARD);
+  },
+
+  refresh: () => {
+    ipcRenderer.send(IPC_CHANNELS.USER_REFRESH);
   },
 
   // Main to Renderer listeners

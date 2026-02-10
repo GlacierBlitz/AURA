@@ -43,6 +43,30 @@ export function registerIPCHandlers(shell?: any, configCallback?: (apiKey: strin
     }
   });
 
+  // User goes back
+  ipcMain.on(IPC_CHANNELS.USER_GO_BACK, () => {
+    console.log('Go back');
+    if (electronShell && electronShell.goBack) {
+      electronShell.goBack();
+    }
+  });
+
+  // User goes forward
+  ipcMain.on(IPC_CHANNELS.USER_GO_FORWARD, () => {
+    console.log('Go forward');
+    if (electronShell && electronShell.goForward) {
+      electronShell.goForward();
+    }
+  });
+
+  // User refreshes page
+  ipcMain.on(IPC_CHANNELS.USER_REFRESH, () => {
+    console.log('Refresh page');
+    if (electronShell && electronShell.refresh) {
+      electronShell.refresh();
+    }
+  });
+
   // User submits an instruction
   ipcMain.on(IPC_CHANNELS.USER_SUBMIT_INSTRUCTION, (event, payload: UserInstructionPayload) => {
     console.log('Received user instruction:', payload.text);
