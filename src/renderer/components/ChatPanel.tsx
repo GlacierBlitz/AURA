@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { StatusIndicator } from './StatusIndicator';
@@ -6,6 +6,7 @@ import '../styles/ChatPanel.css';
 
 export function ChatPanel() {
   const { messages, inputText, setInputText, pipelineStatus, addMessage } = useAppStore();
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const {
     isListening,
     transcript,
@@ -15,6 +16,15 @@ export function ChatPanel() {
     isSupported: isSpeechSupported,
     error: speechError,
   } = useSpeechRecognition();
+
+  // Auto-scroll to latest message
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
 
   // Submit instruction directly via electronAPI (don't call useIPC here - it's already in App.tsx)
   const submitInstruction = useCallback((text: string) => {
