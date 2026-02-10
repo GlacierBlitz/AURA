@@ -7,15 +7,125 @@
   border-radius: 10px;
   font-size: 14px;
   color: var(--text-secondary);
+  transition: all 0.3s ease;
 }
 
+/* Status states */
+.status-indicator.idle {
+  background: rgba(34, 197, 94, 0.1);
+  color: #22c55e;
+}
+
+.status-indicator.extracting {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.status-indicator.processing {
+  background: rgba(59, 130, 246, 0.1);
+  color: #3b82f6;
+}
+
+.status-indicator.executing {
+  background: rgba(249, 115, 22, 0.1);
+  color: #f97316;
+}
+
+.status-indicator.error {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
+/* Static dot for idle/error states */
 .status-dot {
   width: 10px;
   height: 10px;
   border-radius: 50%;
   flex-shrink: 0;
+  transition: background-color 0.3s ease;
+}
+
+.status-indicator.idle .status-dot {
+  background-color: #22c55e;
+  box-shadow: 0 0 8px 0 rgba(34, 197, 94, 0.5);
+}
+
+.status-indicator.error .status-dot {
+  background-color: #ef4444;
+  animation: pulse-error 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Spinner for loading states */
+.status-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.spinner-ring {
+  width: 12px;
+  height: 12px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+  border-top-color: transparent;
+  border-right-color: transparent;
+  animation: spin 1s linear infinite;
+}
+
+.status-indicator.processing .spinner-ring {
+  border-color: rgba(59, 130, 246, 0.3);
+  border-top-color: #3b82f6;
+  border-right-color: #3b82f6;
+}
+
+.status-indicator.extracting .spinner-ring {
+  border-color: rgba(59, 130, 246, 0.3);
+  border-top-color: #3b82f6;
+  border-right-color: #3b82f6;
+}
+
+.status-indicator.executing .spinner-ring {
+  border-color: rgba(249, 115, 22, 0.3);
+  border-top-color: #f97316;
+  border-right-color: #f97316;
 }
 
 .status-text {
   font-weight: 500;
+  letter-spacing: 0.3px;
 }
+
+/* Animations */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse-error {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    box-shadow: 0 0 8px 0 rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 16px 2px rgba(59, 130, 246, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 8px 0 rgba(59, 130, 246, 0.5);
+  }
+}
+

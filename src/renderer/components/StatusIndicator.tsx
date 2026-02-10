@@ -7,31 +7,27 @@ export function StatusIndicator() {
   const statusLabels = {
     idle: 'Ready',
     extracting: 'Analyzing page...',
-    processing: 'Extracting request...',
-    executing: 'Performing action...',
+    processing: 'Processing request...',
+    executing: 'Executing actions...',
     error: 'Error occurred',
   };
 
-  const statusColors = {
-    idle: 'green',
-    extracting: 'blue',
-    processing: 'blue',
-    executing: 'orange',
-    error: 'red',
-  };
+  const isLoading = pipelineStatus === 'processing' || pipelineStatus === 'executing' || pipelineStatus === 'extracting';
 
   return (
     <div
-      className="status-indicator"
+      className={`status-indicator ${pipelineStatus} ${isLoading ? 'loading' : ''}`}
       role="status"
       aria-live="polite"
       aria-label={`Status: ${statusLabels[pipelineStatus]}`}
     >
-      <div
-        className="status-dot"
-        style={{ backgroundColor: statusColors[pipelineStatus] }}
-        aria-hidden="true"
-      />
+      {isLoading ? (
+        <div className="status-spinner" aria-hidden="true">
+          <div className="spinner-ring" />
+        </div>
+      ) : (
+        <div className="status-dot" aria-hidden="true" />
+      )}
       <span className="status-text">{statusLabels[pipelineStatus]}</span>
     </div>
   );

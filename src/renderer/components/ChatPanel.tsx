@@ -59,6 +59,7 @@ export function ChatPanel() {
   };
 
   const isExecuting = pipelineStatus === 'executing';
+  const isProcessing = pipelineStatus === 'processing' || pipelineStatus === 'extracting' || pipelineStatus === 'executing';
 
   return (
     <div className="chat-panel" role="region" aria-label="Chat interface">
@@ -94,6 +95,16 @@ export function ChatPanel() {
               </div>
             </div>
           ))
+        )}
+        {isProcessing && (
+          <div className="chat-message chat-message-processing" role="status" aria-label="Processing request">
+            <div className="processing-indicator">
+              <div className="processing-dot" />
+              <div className="processing-dot" />
+              <div className="processing-dot" />
+            </div>
+            <span className="processing-text">Processing...</span>
+          </div>
         )}
       </div>
 
