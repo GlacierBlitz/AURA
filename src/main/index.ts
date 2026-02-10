@@ -203,7 +203,7 @@ async function initialize() {
     });
 
     // Register IPC handlers with references to shell and config function
-    registerIPCHandlers(electronShell, configureLLMProvider, whisperService, intentPipeline, serpService);
+    registerIPCHandlers(electronShell, configureLLMProvider, whisperService, intentPipeline);
 
     // Register pipeline callbacks once (before creating window)
     registerPipelineCallbacks();
