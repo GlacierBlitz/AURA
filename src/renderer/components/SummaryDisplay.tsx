@@ -46,44 +46,11 @@ export function SummaryDisplay() {
       aria-live="polite"
     >
       <h2 className="summary-title">Website Summary</h2>
-      
-      {currentUrl && (
-        <div className="summary-url">
-          <span className="summary-label">URL:</span>
-          <span className="summary-value">{currentUrl}</span>
-        </div>
-      )}
 
       <div className="summary-section">
         <h3 className="summary-section-title">Purpose</h3>
         <p className="summary-content">{currentSummary.purpose}</p>
       </div>
-
-      {currentSummary.sections.length > 0 && (
-        <div className="summary-section">
-          <h3 className="summary-section-title">Sections</h3>
-          <ul className="summary-list" aria-label="Website sections">
-            {currentSummary.sections.map((section, index) => (
-              <li key={index} className="summary-list-item">
-                {section}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {currentSummary.availableActions.length > 0 && (
-        <div className="summary-section">
-          <h3 className="summary-section-title">Available Actions</h3>
-          <ul className="summary-list" aria-label="Available actions">
-            {currentSummary.availableActions.map((action, index) => (
-              <li key={index} className="summary-list-item">
-                {action}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </div>
   );
 }

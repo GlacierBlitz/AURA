@@ -67,12 +67,97 @@ if (serpApiKey) {
   console.warn('⚠️  SERP_API_KEY not found in environment. Add SERP_API_KEY to .env for search autocomplete.');
 }
 
+// Keep reference to the main window for sending messages
+let mainWindowRef: BrowserWindow | null = null;
+
+/**
+ * Register pipeline callbacks once (not per window)
+ * Called during initialization
+ */
+function registerPipelineCallbacks() {
+  intentPipeline.onSummary((summary, url) => {
+    if (!mainWindowRef) return;
+    const payload: PipelineSummaryPayload = {
+      summary,
+      url,
+      timestamp: new Date().toISOString(),
+    };
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.PIPELINE_SUMMARY, payload);
+  });
+
+  intentPipeline.onStatus((status) => {
+    if (!mainWindowRef) return;
+    const payload: PipelineStatusPayload = {
+      status: status as PipelineStatus,
+    };
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.PIPELINE_STATUS, payload);
+  });
+
+  intentPipeline.onError((error) => {
+    if (!mainWindowRef) return;
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.PIPELINE_ERROR, {
+      message: error.message,
+      code: 'PIPELINE_ERROR',
+    });
+  });
+
+  intentPipeline.onActionPlan((plan: ActionPlanResponse) => {
+    if (!mainWindowRef) return;
+    const message: ChatMessage = {
+      id: `plan-${Date.now()}`,
+      role: 'assistant',
+      content: `I've analyzed your request and created an action plan with ${plan.steps.length} step(s). ${plan.explanation}`,
+      timestamp: new Date().toISOString(),
+    };
+    const payload: PipelineMessagePayload = { message };
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
+    console.log('Action plan sent to renderer');
+  });
+
+  intentPipeline.onClarification((clarification: ClarificationResponse) => {
+    if (!mainWindowRef) return;
+    const message: ChatMessage = {
+      id: `clarification-${Date.now()}`,
+      role: 'assistant',
+      content: clarification.reason + (clarification.options ? '\n\nSuggestions:\n' + clarification.options.map(opt => `• ${opt}`).join('\n') : ''),
+      timestamp: new Date().toISOString(),
+    };
+    const payload: PipelineMessagePayload = { message };
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
+    console.log('Clarification sent to renderer');
+  });
+
+  intentPipeline.onActionResult((result) => {
+    if (!mainWindowRef) return;
+    console.log('[onActionResult callback] Creating message for action:', result.action.description);
+    const statusIcon = result.status === 'success' ? '✓' : '✗';
+    const message: ChatMessage = {
+      id: `action-${Date.now()}`,
+      role: 'assistant',
+      content: `${statusIcon} ${result.action.description}${result.error ? ` - Error: ${result.error.message}` : ''}`,
+      timestamp: new Date().toISOString(),
+      actionResult: result,
+    };
+    const payload: PipelineMessagePayload = { message };
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
+    console.log('[onActionResult callback] Action result sent to renderer:', result.status);
+  });
+
+  console.log('Pipeline callbacks registered');
+}
+
 /**
  * Create the main application window
  */
 async function createWindow() {
   try {
     const mainWindow = await electronShell.createMainWindow();
+    mainWindowRef = mainWindow;
+
+    // Clear reference when window is closed
+    mainWindow.on('closed', () => {
+      mainWindowRef = null;
+    });
 
     // Register navigation listeners
     electronShell.onNavigate((url) => {
@@ -91,69 +176,6 @@ async function createWindow() {
 
       // Trigger pipeline
       await intentPipeline.processPageLoad(cdpSession, url);
-    });
-
-    // Register pipeline callbacks
-    intentPipeline.onSummary((summary, url) => {
-      const payload: PipelineSummaryPayload = {
-        summary,
-        url,
-        timestamp: new Date().toISOString(),
-      };
-      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_SUMMARY, payload);
-    });
-
-    intentPipeline.onStatus((status) => {
-      const payload: PipelineStatusPayload = {
-        status: status as PipelineStatus,
-      };
-      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_STATUS, payload);
-    });
-
-    intentPipeline.onError((error) => {
-      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_ERROR, {
-        message: error.message,
-        code: 'PIPELINE_ERROR',
-      });
-    });
-
-    intentPipeline.onActionPlan((plan: ActionPlanResponse) => {
-      const message: ChatMessage = {
-        id: `plan-${Date.now()}`,
-        role: 'assistant',
-        content: `I've analyzed your request and created an action plan with ${plan.steps.length} step(s). ${plan.explanation}`,
-        timestamp: new Date().toISOString(),
-      };
-      const payload: PipelineMessagePayload = { message };
-      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
-      console.log('Action plan sent to renderer');
-    });
-
-    intentPipeline.onClarification((clarification: ClarificationResponse) => {
-      const message: ChatMessage = {
-        id: `clarification-${Date.now()}`,
-        role: 'assistant',
-        content: clarification.reason + (clarification.options ? '\n\nSuggestions:\n' + clarification.options.map(opt => `• ${opt}`).join('\n') : ''),
-        timestamp: new Date().toISOString(),
-      };
-      const payload: PipelineMessagePayload = { message };
-      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
-      console.log('Clarification sent to renderer');
-    });
-
-    intentPipeline.onActionResult((result) => {
-      console.log('[onActionResult callback] Creating message for action:', result.action.description);
-      const statusIcon = result.status === 'success' ? '✓' : '✗';
-      const message: ChatMessage = {
-        id: `action-${Date.now()}`,
-        role: 'assistant',
-        content: `${statusIcon} ${result.action.description}${result.error ? ` - Error: ${result.error.message}` : ''}`,
-        timestamp: new Date().toISOString(),
-        actionResult: result,
-      };
-      const payload: PipelineMessagePayload = { message };
-      sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_MESSAGE, payload);
-      console.log('[onActionResult callback] Action result sent to renderer:', result.status);
     });
 
     return mainWindow;
@@ -196,6 +218,9 @@ async function initialize() {
 
     // Register IPC handlers with references to shell and config function
     registerIPCHandlers(electronShell, configureLLMProvider, whisperService, intentPipeline, serpService);
+
+    // Register pipeline callbacks once (before creating window)
+    registerPipelineCallbacks();
 
     // Create the main window
     await createWindow();

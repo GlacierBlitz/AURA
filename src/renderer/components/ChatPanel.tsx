@@ -1,13 +1,11 @@
 import { useEffect } from 'react';
 import { useAppStore } from '../store/appStore';
-import { useIPC } from '../hooks/useIPC';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { StatusIndicator } from './StatusIndicator';
 import '../styles/ChatPanel.css';
 
 export function ChatPanel() {
   const { messages, inputText, setInputText, pipelineStatus } = useAppStore();
-  const { submitInstruction } = useIPC();
   const {
     isListening,
     transcript,
@@ -17,6 +15,11 @@ export function ChatPanel() {
     isSupported: isSpeechSupported,
     error: speechError,
   } = useSpeechRecognition();
+
+  // Submit instruction directly via electronAPI (don't call useIPC here - it's already in App.tsx)
+  const submitInstruction = (text: string) => {
+    window.electronAPI.submitInstruction({ text });
+  };
 
   // Update input text when transcript changes
   useEffect(() => {
