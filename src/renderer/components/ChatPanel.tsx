@@ -1,11 +1,11 @@
-import { useEffect } from 'react';
+import { useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/appStore';
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { StatusIndicator } from './StatusIndicator';
 import '../styles/ChatPanel.css';
 
 export function ChatPanel() {
-  const { messages, inputText, setInputText, pipelineStatus } = useAppStore();
+  const { messages, inputText, setInputText, pipelineStatus, addMessage } = useAppStore();
   const {
     isListening,
     transcript,
@@ -17,20 +17,33 @@ export function ChatPanel() {
   } = useSpeechRecognition();
 
   // Submit instruction directly via electronAPI (don't call useIPC here - it's already in App.tsx)
-  const submitInstruction = (text: string) => {
+  const submitInstruction = useCallback((text: string) => {
+    // Add user message to chat
+    const userMessage = {
+      id: `user-${Date.now()}`,
+      role: 'user' as const,
+      content: text,
+      timestamp: new Date().toISOString(),
+    };
+    addMessage(userMessage);
+    
+    // Send to main process
     window.electronAPI.submitInstruction({ text });
-  };
+  }, [addMessage]);
 
-  // Update input text when transcript changes
+  // Auto-submit when transcript is received from voice recognition
   useEffect(() => {
-    if (transcript) {
-      setInputText(transcript);
+    if (transcript && !isListening && pipelineStatus !== 'executing') {
+      // Transcript is complete (user stopped speaking), auto-submit
+      submitInstruction(transcript);
+      resetTranscript();
+      setInputText('');
     }
-  }, [transcript, setInputText]);
+  }, [transcript, isListening, pipelineStatus, resetTranscript, setInputText, submitInstruction]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputText.trim() && pipelineStatus !== 'processing' && pipelineStatus !== 'executing') {
+    if (inputText.trim() && pipelineStatus !== 'executing') {
       submitInstruction(inputText);
       setInputText('');
       resetTranscript(); // Clear speech transcript after sending
@@ -45,7 +58,7 @@ export function ChatPanel() {
     }
   };
 
-  const isProcessing = pipelineStatus === 'processing' || pipelineStatus === 'executing';
+  const isExecuting = pipelineStatus === 'executing';
 
   return (
     <div className="chat-panel" role="region" aria-label="Chat interface">
@@ -101,8 +114,7 @@ export function ChatPanel() {
                 handleSubmit(e);
               }
             }}
-            disabled={isProcessing}
-            rows={3}
+            rows={1}
             aria-label="Chat input"
           />
           {isSpeechSupported && (
@@ -110,7 +122,6 @@ export function ChatPanel() {
               type="button"
               className={`voice-input-button ${isListening ? 'listening' : ''}`}
               onClick={handleVoiceToggle}
-              disabled={isProcessing}
               aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
               title={isListening ? 'Stop recording' : 'Start voice input'}
             >
@@ -128,6 +139,25 @@ export function ChatPanel() {
               )}
             </button>
           )}
+          <button
+            type="submit"
+            className="chat-send-button"
+            disabled={isExecuting || !inputText.trim()}
+            aria-label="Send message"
+            title={isExecuting ? 'Executing...' : 'Send message'}
+          >
+            {isExecuting ? (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 6v6l4 2" />
+              </svg>
+            ) : (
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13" />
+                <polygon points="22 2 15 22 11 13 2 9 22 2" />
+              </svg>
+            )}
+          </button>
         </div>
         {speechError && (
           <div className="voice-error" role="alert">
@@ -139,14 +169,6 @@ export function ChatPanel() {
             🎤 Listening... Speak now
           </div>
         )}
-        <button
-          type="submit"
-          className="chat-send-button"
-          disabled={isProcessing || !inputText.trim()}
-          aria-label="Send message"
-        >
-          {isProcessing ? 'Processing...' : 'Send'}
-        </button>
       </form>
     </div>
   );

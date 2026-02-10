@@ -103,6 +103,8 @@ textarea {
   border-left: 1px solid var(--border);
   background: var(--surface);
   z-index: 100;
+  padding: 12px;
+  gap: 0;
 }
 
 .settings-button-container {
