@@ -25,6 +25,7 @@ export const IPC_CHANNELS = {
   PIPELINE_MESSAGE: 'pipeline:message',
   PIPELINE_ERROR: 'pipeline:error',
   PIPELINE_NAVIGATION: 'pipeline:navigation',
+  UI_OPEN_ACCESSIBILITY: 'ui:open-accessibility',
 
   // Confirmation (bidirectional)
   CONFIRM_REQUEST: 'confirm:request',
@@ -68,6 +69,10 @@ export interface PipelineSummaryPayload {
 
 export interface PipelineNavigationPayload {
   url: string;
+}
+
+export interface UIOpenAccessibilityPayload {
+  source?: 'voice' | 'system';
 }
 
 export type PipelineStatus = 'idle' | 'extracting' | 'processing' | 'executing' | 'error';

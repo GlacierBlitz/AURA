@@ -18,6 +18,7 @@ import type {
   ScrollAction,
   AccessibilityAction,
   SubmitAction,
+  OpenAccessibilityPanelAction,
 } from '@shared/types';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { ActionValidator, ValidationResult } from './actionValidator';
@@ -38,6 +39,7 @@ export interface ExecutionConfig {
 }
 
 export type AccessibilityUpdateCallback = (settings: Partial<AccessibilitySettings>) => void;
+export type OpenAccessibilityPanelCallback = () => void;
 
 const DEFAULT_CONFIG: ExecutionConfig = {
   maxRetries: 3,
@@ -48,10 +50,15 @@ const DEFAULT_CONFIG: ExecutionConfig = {
 export class ActionExecutionEngine {
   private validator: ActionValidator;
   private accessibilityCallback?: AccessibilityUpdateCallback;
+  private openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback;
 
-  constructor(accessibilityCallback?: AccessibilityUpdateCallback) {
+  constructor(
+    accessibilityCallback?: AccessibilityUpdateCallback,
+    openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback
+  ) {
     this.validator = new ActionValidator();
     this.accessibilityCallback = accessibilityCallback;
+    this.openAccessibilityPanelCallback = openAccessibilityPanelCallback;
   }
 
   /**
@@ -150,6 +157,8 @@ export class ActionExecutionEngine {
         return this.executeScroll(cdpSession, action as ScrollAction);
       case 'accessibility':
         return this.executeAccessibility(cdpSession, action as AccessibilityAction);
+      case 'open_accessibility_panel':
+        return this.executeOpenAccessibilityPanel(action as OpenAccessibilityPanelAction);
       case 'submit':
         return this.executeSubmit(cdpSession, action as SubmitAction);
       case 'select':
@@ -209,6 +218,17 @@ export class ActionExecutionEngine {
 
     // Small delay to allow settings to apply
     await this.delay(100);
+  }
+
+  private async executeOpenAccessibilityPanel(action: OpenAccessibilityPanelAction): Promise<void> {
+    console.log('Executing OPEN_ACCESSIBILITY_PANEL');
+
+    if (!this.openAccessibilityPanelCallback) {
+      throw new Error('Open accessibility panel callback not configured');
+    }
+
+    this.openAccessibilityPanelCallback();
+    await this.delay(50);
   }
 
   // ─── Placeholder implementations for other actions ───────────

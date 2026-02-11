@@ -13,6 +13,7 @@ import type {
   PipelineMessagePayload,
   PipelineErrorPayload,
   PipelineNavigationPayload,
+  UIOpenAccessibilityPayload,
   ConfirmationRequestPayload,
   ConfirmationResponsePayload,
   LogQueryPayload,
@@ -42,6 +43,7 @@ export interface ElectronAPI {
   onPipelineMessage: (callback: (payload: PipelineMessagePayload) => void) => () => void;
   onPipelineError: (callback: (payload: PipelineErrorPayload) => void) => () => void;
   onPipelineNavigation: (callback: (payload: PipelineNavigationPayload) => void) => () => void;
+  onOpenAccessibilityPanel: (callback: (payload: UIOpenAccessibilityPayload) => void) => () => void;
 
   // Confirmation dialog
   onConfirmRequest: (callback: (payload: ConfirmationRequestPayload) => void) => () => void;
@@ -151,6 +153,16 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.PIPELINE_NAVIGATION, listener);
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.PIPELINE_NAVIGATION, listener);
+    };
+  },
+
+  onOpenAccessibilityPanel: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: UIOpenAccessibilityPayload) => {
+      callback(payload);
+    };
+    ipcRenderer.on(IPC_CHANNELS.UI_OPEN_ACCESSIBILITY, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.UI_OPEN_ACCESSIBILITY, listener);
     };
   },
 

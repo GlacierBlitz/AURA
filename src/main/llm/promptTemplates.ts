@@ -111,6 +111,7 @@ Available action types:
 - wait: Wait for page to load (requires: duration in ms)
 - extract: Extract specific data (requires: selector, elementDescription)
 - accessibility: Adjust accessibility settings (requires: setting, value)
+- open_accessibility_panel: Open the accessibility settings panel (no additional fields)
 
 Accessibility action details:
 - setting options: "fontSize" (50-300), "lineSpacing" (1.0-3.0), "highContrast" (true/false), 
@@ -121,6 +122,7 @@ Accessibility action details:
   - Enable high contrast: {"action": "accessibility", "setting": "highContrast", "value": true, "description": "Enable high contrast mode"}
   - Apply color-blind filter: {"action": "accessibility", "setting": "colorFilter", "value": "protanopia", "description": "Apply protanopia color filter"}
   - Use large text profile: {"action": "accessibility", "setting": "profile", "value": "large-text", "description": "Switch to large text profile"}
+  - Open accessibility settings: {"action": "open_accessibility_panel", "description": "Open the accessibility settings panel"}
 
 Field requirements:
 - All actions require a "description" field explaining what this step does

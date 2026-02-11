@@ -31,6 +31,20 @@ export function App() {
     }
   }, []);
 
+  useEffect(() => {
+    if (!window.electronAPI?.onOpenAccessibilityPanel) {
+      return;
+    }
+
+    const unsubscribe = window.electronAPI.onOpenAccessibilityPanel(() => {
+      setShowAccessibility(true);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
+
   const handleNavigate = (url: string) => {
     if (window.electronAPI) {
       window.electronAPI.navigate({ url });

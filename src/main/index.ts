@@ -13,6 +13,7 @@ import type {
   PipelineStatus,
   PipelineMessagePayload,
   PipelineNavigationPayload,
+  UIOpenAccessibilityPayload,
   ChatMessage,
 } from '@shared/types';
 import type { ActionPlanResponse, ClarificationResponse } from '@shared/types';
@@ -32,6 +33,11 @@ const intentPipeline = new IntentPipeline(
   // Accessibility callback - updates settings via electronShell
   (settings) => {
     electronShell.updateAccessibilitySettings(settings as any);
+  },
+  () => {
+    if (!mainWindowRef) return;
+    const payload: UIOpenAccessibilityPayload = { source: 'voice' };
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.UI_OPEN_ACCESSIBILITY, payload);
   }
 );
 

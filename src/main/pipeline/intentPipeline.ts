@@ -6,7 +6,7 @@ import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { PageStateExtractor } from './pageStateExtractor';
 import { ContentSanitizer } from './contentSanitizer';
 import { LLMOrchestrator } from '../llm/llmOrchestrator';
-import { ActionExecutionEngine, AccessibilityUpdateCallback } from '../execution/actionExecutionEngine';
+import { ActionExecutionEngine, AccessibilityUpdateCallback, OpenAccessibilityPanelCallback } from '../execution/actionExecutionEngine';
 import { ContextManager } from './contextManager';
 
 /**
@@ -41,11 +41,15 @@ export class IntentPipeline {
   private summaryCacheFile: string;
   private summaryCacheSaveTimer: NodeJS.Timeout | null = null;
 
-  constructor(orchestrator: LLMOrchestrator, accessibilityCallback?: AccessibilityUpdateCallback) {
+  constructor(
+    orchestrator: LLMOrchestrator,
+    accessibilityCallback?: AccessibilityUpdateCallback,
+    openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback
+  ) {
     this.extractor = new PageStateExtractor();
     this.sanitizer = new ContentSanitizer();
     this.orchestrator = orchestrator;
-    this.actionEngine = new ActionExecutionEngine(accessibilityCallback);
+    this.actionEngine = new ActionExecutionEngine(accessibilityCallback, openAccessibilityPanelCallback);
     this.contextManager = new ContextManager();
     this.summaryCacheDir = path.join(app.getPath('userData'), 'summary-cache');
     this.summaryCacheFile = path.join(this.summaryCacheDir, 'summary-cache.json');

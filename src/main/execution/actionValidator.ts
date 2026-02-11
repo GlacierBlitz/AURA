@@ -52,8 +52,9 @@ export class ActionValidator {
 
     // V-001: Action type must be one of 12 supported types
     const validTypes = [
-      'navigate', 'click', 'type', 'select', 'submit', 
-      'scroll', 'back', 'forward', 'wait', 'extract', 'summarize', 'accessibility'
+      'navigate', 'click', 'type', 'select', 'submit',
+      'scroll', 'back', 'forward', 'wait', 'extract', 'summarize', 'accessibility',
+      'open_accessibility_panel'
     ];
     if (!validTypes.includes(action.action)) {
       errors.push(`Invalid action type: ${action.action}`);
@@ -157,6 +158,8 @@ export class ActionValidator {
             errors.push(`profile value must be one of: ${validProfiles.join(', ')}`);
           }
         }
+        break;
+      case 'open_accessibility_panel':
         break;
     }
 

@@ -53,7 +53,8 @@ export type ActionType =
   | 'wait'
   | 'extract'
   | 'summarize'
-  | 'accessibility';
+  | 'accessibility'
+  | 'open_accessibility_panel';
 
 export interface BaseAction {
   action: ActionType;
@@ -129,6 +130,10 @@ export interface AccessibilityAction extends BaseAction {
   value: number | boolean | string;
 }
 
+export interface OpenAccessibilityPanelAction extends BaseAction {
+  action: 'open_accessibility_panel';
+}
+
 export type ActionDescriptor =
   | NavigateAction
   | ClickAction
@@ -141,7 +146,8 @@ export type ActionDescriptor =
   | WaitAction
   | ExtractAction
   | SummarizeAction
-  | AccessibilityAction;
+  | AccessibilityAction
+  | OpenAccessibilityPanelAction;
 
 // ─── Extractable Attributes ─────────────────────────────────
 
