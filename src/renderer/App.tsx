@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { NavigationBar } from './components/NavigationBar';
 import { ChatPanel } from './components/ChatPanel';
 import { SummaryDisplay } from './components/SummaryDisplay';
 import { SettingsPanel } from './components/SettingsPanel';
 import { AccessibilityPanel } from './components/AccessibilityPanel';
 import { useIPC } from './hooks/useIPC';
+import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { DEFAULT_ACCESSIBILITY_SETTINGS } from '@shared/types/accessibility';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import './styles/global.css';
@@ -16,6 +17,9 @@ export function App() {
 
   // Initialize IPC listeners
   useIPC();
+
+  // Initialize speech recognition for global keyboard controls
+  const speechRecognition = useSpeechRecognition();
 
   // Load and apply saved accessibility settings on startup
   useEffect(() => {
@@ -70,6 +74,54 @@ export function App() {
     setShowAccessibility(true);
   };
 
+  // Handle keyboard shortcuts for voice recording
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Only allow voice recording when chat panel is visible
+    if (!showChatPanel) return;
+    
+    // Check if user is typing in an input field
+    const target = e.target as HTMLElement;
+    const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+    
+    // Spacebar: Push-to-talk (only when not in input fields)
+    if (e.code === 'Space' && !isInputField && !e.repeat) {
+      e.preventDefault();
+      if (!speechRecognition.isListening) {
+        speechRecognition.startListening();
+      }
+      return;
+    }
+  }, [speechRecognition, showChatPanel]);
+
+  const handleKeyUp = useCallback((e: KeyboardEvent) => {
+    // Only allow voice recording when chat panel is visible
+    if (!showChatPanel) return;
+    
+    // Check if user is typing in an input field
+    const target = e.target as HTMLElement;
+    const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+    
+    // Spacebar release: Stop push-to-talk (only when not in input fields)
+    if (e.code === 'Space' && !isInputField) {
+      e.preventDefault();
+      if (speechRecognition.isListening) {
+        speechRecognition.stopListening();
+      }
+      return;
+    }
+  }, [speechRecognition, showChatPanel]);
+
+  // Add global keyboard event listeners for voice controls
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [handleKeyDown, handleKeyUp]);
+
   return (
     <div className="app-container">
       <NavigationBar 
@@ -85,7 +137,7 @@ export function App() {
           {showChatPanel && (
             <div className="chat-area">
               <SummaryDisplay />
-              <ChatPanel />
+              <ChatPanel speechRecognition={speechRecognition} />
             </div>
           )}
         </div>

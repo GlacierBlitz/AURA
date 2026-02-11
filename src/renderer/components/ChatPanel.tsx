@@ -1,10 +1,24 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '../store/appStore';
-import { useSpeechRecognition } from '../hooks/useSpeechRecognition';
 import { StatusIndicator } from './StatusIndicator';
 import '../styles/ChatPanel.css';
 
-export function ChatPanel() {
+// Interface for speech recognition functionality passed as props
+interface SpeechRecognitionProps {
+  isListening: boolean;
+  transcript: string;
+  startListening: () => void;
+  stopListening: () => void;
+  resetTranscript: () => void;
+  isSupported: boolean;
+  error: string | null;
+}
+
+interface ChatPanelProps {
+  speechRecognition: SpeechRecognitionProps;
+}
+
+export function ChatPanel({ speechRecognition }: ChatPanelProps) {
   const { messages, inputText, setInputText, pipelineStatus, addMessage } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSubmittedTranscriptRef = useRef<string>('');
@@ -16,7 +30,7 @@ export function ChatPanel() {
     resetTranscript,
     isSupported: isSpeechSupported,
     error: speechError,
-  } = useSpeechRecognition();
+  } = speechRecognition;
 
   // Auto-scroll to latest message
   const scrollToBottom = useCallback(() => {
@@ -156,7 +170,7 @@ export function ChatPanel() {
               className={`voice-input-button ${isListening ? 'listening' : ''}`}
               onClick={handleVoiceToggle}
               aria-label={isListening ? 'Stop voice input' : 'Start voice input'}
-              title={isListening ? 'Stop recording' : 'Start voice input'}
+              title={isListening ? 'Stop recording' : 'Voice input'}
             >
               {isListening ? (
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -192,6 +206,13 @@ export function ChatPanel() {
             )}
           </button>
         </div>
+        
+        {isSpeechSupported && (
+          <div className="input-hint">
+            💡 Tip: Hold <kbd>Space</kbd> for voice input
+          </div>
+        )}
+        
         {speechError && (
           <div className="voice-error" role="alert">
             {speechError}
