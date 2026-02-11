@@ -12,7 +12,9 @@ import type {
   TranscribeAudioPayload,
   TranscribeAudioResponse,
   SetSuggestionsVisiblePayload,
+  PageContentPayload,
 } from '@shared/types';
+import { PageTextExtractor } from '../pipeline/pageTextExtractor';
 
 let electronShell: any = null;
 let configureLLMCallback: ((apiKey: string) => void) | null = null;
@@ -201,6 +203,50 @@ export function registerIPCHandlers(
     console.log('Set suggestions visible:', payload.visible);
     if (electronShell && electronShell.setSuggestionsVisible) {
       electronShell.setSuggestionsVisible(payload.visible);
+    }
+  });
+
+  // User requests to read page content
+  ipcMain.handle(IPC_CHANNELS.USER_READ_PAGE, async (event) => {
+    console.log('Received request to read page');
+
+    if (!electronShell) {
+      console.error('Electron shell not available for reading page');
+      return;
+    }
+
+    try {
+      // Get CDP session from electron shell
+      const cdpSession = electronShell.getCDPSession();
+      if (!cdpSession) {
+        console.error('CDP session not available for reading page');
+        return;
+      }
+
+      // Extract readable text and metadata
+      const textExtractor = new PageTextExtractor();
+      const [text, metadata] = await Promise.all([
+        textExtractor.extractReadableText(cdpSession),
+        textExtractor.extractPageMetadata(cdpSession),
+      ]);
+
+      // Send the page content back to renderer
+      const payload: PageContentPayload = {
+        text,
+        title: metadata.title,
+        url: metadata.url,
+      };
+
+      // Send via sender to get correct window
+      event.sender.send(IPC_CHANNELS.PAGE_CONTENT_READY, payload);
+    } catch (error: any) {
+      console.error('Error reading page:', error);
+      const errorPayload: PageContentPayload = {
+        text: 'Sorry, I could not read the page content. ' + (error?.message || ''),
+        title: 'Error',
+        url: '',
+      };
+      event.sender.send(IPC_CHANNELS.PAGE_CONTENT_READY, errorPayload);
     }
   });
 

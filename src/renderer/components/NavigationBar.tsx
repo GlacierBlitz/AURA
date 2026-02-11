@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import '../styles/NavigationBar.css';
-import { Settings, RotateCw, MoveLeft, MoveRight, X, Home } from 'lucide-react';
+import { Settings, RotateCw, MoveLeft, MoveRight, X, Home, Volume2 } from 'lucide-react';
 import { useAppStore } from '../store/appStore';
+import { useReadPage } from '../hooks/useReadPage';
 
 
 
@@ -16,6 +17,7 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccess
   const [url, setUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const currentUrl = useAppStore((state) => state.currentUrl);
+  const { readPage, isReading, stopReading } = useReadPage();
 
   // Keep inputRef for focusing when needed
 
@@ -176,6 +178,14 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccess
           title="Home"
         >
           <Home color="black" strokeWidth={2} size={18} />
+        </button>
+      <button
+          className={`accessibility-nav-button ${isReading ? 'reading' : ''}`}
+          onClick={isReading ? stopReading : readPage}
+          aria-label={isReading ? "Stop reading page" : "Read page aloud"}
+          title={isReading ? "Stop reading page" : "Read page aloud"}
+        >
+          <Volume2 color={isReading ? '#4CAF50' : 'black'} strokeWidth={2} size={20} />
         </button>
       {onOpenAccessibility && (
         <button

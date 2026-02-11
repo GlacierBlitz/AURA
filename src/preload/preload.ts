@@ -18,6 +18,7 @@ import type {
   ConfirmationResponsePayload,
   LogQueryPayload,
   LogResultsPayload,
+  PageContentPayload,
 } from '@shared/types';
 import { IPC_CHANNELS } from '@shared/types';
 
@@ -35,6 +36,7 @@ export interface ElectronAPI {
   updateAccessibility?: (payload: UpdateAccessibilityPayload) => void;
   setModalOpen?: (payload: SetModalOpenPayload) => void;
   transcribeAudio?: (payload: TranscribeAudioPayload) => Promise<TranscribeAudioResponse>;
+  readPage?: () => Promise<void>;
   invoke?: (channel: string, payload: any) => Promise<any>;
 
   // Listen for pipeline events from main process
@@ -44,6 +46,9 @@ export interface ElectronAPI {
   onPipelineError: (callback: (payload: PipelineErrorPayload) => void) => () => void;
   onPipelineNavigation: (callback: (payload: PipelineNavigationPayload) => void) => () => void;
   onOpenAccessibilityPanel: (callback: (payload: UIOpenAccessibilityPayload) => void) => () => void;
+
+  // Page content
+  onPageContentReady: (callback: (payload: PageContentPayload) => void) => () => void;
 
   // Confirmation dialog
   onConfirmRequest: (callback: (payload: ConfirmationRequestPayload) => void) => () => void;
@@ -99,6 +104,10 @@ const electronAPI: ElectronAPI = {
 
   transcribeAudio: (payload: TranscribeAudioPayload): Promise<TranscribeAudioResponse> => {
     return ipcRenderer.invoke(IPC_CHANNELS.USER_TRANSCRIBE_AUDIO, payload);
+  },
+
+  readPage: (): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.USER_READ_PAGE);
   },
 
   invoke: (channel: string, payload: any): Promise<any> => {
@@ -163,6 +172,16 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.UI_OPEN_ACCESSIBILITY, listener);
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.UI_OPEN_ACCESSIBILITY, listener);
+    };
+  },
+
+  onPageContentReady: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: PageContentPayload) => {
+      callback(payload);
+    };
+    ipcRenderer.on(IPC_CHANNELS.PAGE_CONTENT_READY, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.PAGE_CONTENT_READY, listener);
     };
   },
 
