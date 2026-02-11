@@ -54,6 +54,8 @@ export interface AXNode {
   description?: string;
   properties?: Record<string, any>;
   childIds: string[];
+  selector?: string; // CSS selector for targeting this element
+  backendNodeId?: number; // DOM node ID for reliable targeting
 }
 
 // ─── Simplified DOM Types ───────────────────────────────────

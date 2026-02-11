@@ -1,0 +1,50 @@
+.suggestions-overlay-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #ffffff;
+  border: 1px solid #cccccc;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  overflow-y: auto;
+  max-height: 100vh;
+}
+
+.suggestion-item {
+  padding: 12px 16px;
+  color: #333333;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: background-color 0.2s;
+  user-select: none;
+  background: #ffffff;
+}
+
+.suggestion-item:hover {
+  background-color: #f5f5f5;
+}
+
+.suggestion-item:active {
+  background-color: #e8e8e8;
+}
+
+.suggestion-item:not(:last-child) {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.suggestion-icon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.suggestion-text {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+}

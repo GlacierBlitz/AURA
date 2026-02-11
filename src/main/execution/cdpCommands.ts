@@ -93,22 +93,55 @@ export async function clickElement(
   selector: string
 ): Promise<void> {
   // First, verify element is clickable
-  const elementInfo = await queryElement(cdpSession, selector);
+  let elementInfo = await queryElement(cdpSession, selector);
+  let finalSelector = selector;
+  
+  // If element not found with direct selector, try alternative methods
   if (!elementInfo.exists) {
-    throw new Error(`Element not found: ${selector}`);
+    console.warn(`Element not found with selector: ${selector}, trying alternative methods...`);
+    
+    const altSelector = await tryFindVisibleElement(cdpSession, selector);
+    if (altSelector) {
+      elementInfo = await queryElement(cdpSession, altSelector);
+      if (elementInfo.exists) {
+        finalSelector = altSelector;
+        console.log(`Found element using alternative selector: ${altSelector}`);
+      }
+    }
+    
+    if (!elementInfo.exists) {
+      throw new Error(`Element not found: ${selector}`);
+    }
   }
+  
+  // If element exists but is not visible, try to find visible alternative
   if (!elementInfo.visible) {
-    throw new Error(`Element not visible: ${selector}`);
+    console.warn(`Element not visible with selector: ${selector}, trying to find visible alternative...`);
+    
+    const visibleSelector = await tryFindVisibleElement(cdpSession, selector);
+    if (visibleSelector) {
+      const visibleInfo = await queryElement(cdpSession, visibleSelector);
+      if (visibleInfo.visible) {
+        finalSelector = visibleSelector;
+        elementInfo = visibleInfo;
+        console.log(`Found visible element using: ${visibleSelector}`);
+      }
+    }
+    
+    if (!elementInfo.visible) {
+      throw new Error(`Element not visible: ${selector}`);
+    }
   }
+  
   if (!elementInfo.interactable) {
-    throw new Error(`Element not interactable: ${selector}`);
+    throw new Error(`Element not interactable: ${finalSelector}`);
   }
 
   // Perform the click
   const result = await cdpSession.sendCommand('Runtime.evaluate', {
     expression: `
       (function() {
-        const element = document.querySelector(${JSON.stringify(selector)});
+        const element = document.querySelector(${JSON.stringify(finalSelector)});
         if (!element) return false;
         element.click();
         return true;
@@ -122,7 +155,137 @@ export async function clickElement(
   }
 
   if (!result.result.value) {
-    throw new Error(`Failed to click element: ${selector}`);
+    throw new Error(`Failed to click element: ${finalSelector}`);
+  }
+}
+
+/**
+ * Try to find a visible element when the original selector fails or points to hidden element
+ * This handles cases where LLM generated incorrect selectors or duplicate IDs exist
+ */
+async function tryFindVisibleElement(
+  cdpSession: Protocol.ProtocolMapping.API,
+  originalSelector: string
+): Promise<string | null> {
+  try {
+    // Extract the name/label from the selector
+    let searchText = '';
+    
+    // Handle [aria-label='...'] pattern
+    const ariaMatch = originalSelector.match(/\[aria-label=['"]([^'"]+)['"]\]/);
+    if (ariaMatch) {
+      searchText = ariaMatch[1];
+    }
+    
+    // Handle [name='...'] pattern
+    if (!searchText) {
+      const nameMatch = originalSelector.match(/\[name=['"]([^'"]+)['"]\]/);
+      if (nameMatch) {
+        searchText = nameMatch[1];
+      }
+    }
+    
+    // Handle #id pattern - try to find alternative
+    if (!searchText && originalSelector.startsWith('#')) {
+      const idElement = await cdpSession.sendCommand('Runtime.evaluate', {
+        expression: `
+          (function() {
+            const element = document.querySelector(${JSON.stringify(originalSelector)});
+            if (element) {
+              return element.getAttribute('aria-label') || element.textContent?.trim() || '';
+            }
+            return '';
+          })()
+        `,
+        returnByValue: true,
+      });
+      
+      if (idElement.result?.value) {
+        searchText = idElement.result.value;
+      }
+    }
+    
+    if (!searchText) {
+      return null;
+    }
+    
+    // Try to find a visible element with the same accessible name or text content
+    const findScript = `
+      (function() {
+        const searchText = ${JSON.stringify(searchText)};
+        
+        function isVisible(el) {
+          if (!el) return false;
+          const rect = el.getBoundingClientRect();
+          const style = window.getComputedStyle(el);
+          return rect.width > 0 && rect.height > 0 && 
+                 style.visibility !== 'hidden' && 
+                 style.display !== 'none' &&
+                 parseFloat(style.opacity) > 0;
+        }
+        
+        // Try aria-label first (exact match)
+        let candidates = Array.from(document.querySelectorAll('[aria-label="' + searchText + '"]'));
+        candidates = candidates.filter(isVisible);
+        
+        if (candidates.length > 0) {
+          const element = candidates[0];
+          return '[aria-label="' + element.getAttribute('aria-label').replace(/"/g, '\\\\"') + '"]';
+        }
+        
+        // Try finding button/link by text content (visible only)
+        const interactiveElements = Array.from(
+          document.querySelectorAll('button, a, [role="button"], [role="link"], [role="tab"]')
+        );
+        
+        const textMatches = interactiveElements.filter(el => {
+          const text = el.textContent?.trim().toLowerCase();
+          return text === searchText.toLowerCase() && isVisible(el);
+        });
+        
+        if (textMatches.length > 0) {
+          const element = textMatches[0];
+          
+          // Prefer aria-label selector
+          const ariaLabel = element.getAttribute('aria-label');
+          if (ariaLabel) {
+            return '[aria-label="' + ariaLabel.replace(/"/g, '\\\\"') + '"]';
+          }
+          
+          // Use class + nth-child
+          if (element.parentElement) {
+            const siblings = Array.from(element.parentElement.children);
+            const index = siblings.indexOf(element) + 1;
+            let selector = element.tagName.toLowerCase();
+            
+            if (element.className && typeof element.className === 'string') {
+              const classes = element.className.trim().split(/\\s+/);
+              if (classes.length > 0 && classes[0]) {
+                selector += '.' + CSS.escape(classes[0]);
+              }
+            }
+            
+            return selector + ':nth-child(' + index + ')';
+          }
+        }
+        
+        return null;
+      })()
+    `;
+    
+    const result = await cdpSession.sendCommand('Runtime.evaluate', {
+      expression: findScript,
+      returnByValue: true,
+    });
+    
+    if (result.result?.value) {
+      return result.result.value;
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error in tryFindVisibleElement:', error);
+    return null;
   }
 }
 

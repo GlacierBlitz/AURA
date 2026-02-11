@@ -125,16 +125,31 @@ export class PageStateExtractor {
         return undefined;
       }
 
-      // Convert CDP AX nodes to our format
-      const nodes: AXNode[] = response.nodes.map((node: Protocol.Accessibility.AXNode) => ({
-        nodeId: node.nodeId || '',
-        role: node.role?.value || 'unknown',
-        name: node.name?.value || '',
-        description: node.description?.value,
-        value: node.value?.value,
-        properties: this.extractAXProperties(node),
-        childIds: node.childIds || [],
-      }));
+      // Convert CDP AX nodes to our format with selectors
+      const nodes: AXNode[] = [];
+      for (const node of response.nodes) {
+        const axNode: AXNode = {
+          nodeId: node.nodeId || '',
+          role: node.role?.value || 'unknown',
+          name: node.name?.value || '',
+          description: node.description?.value,
+          value: node.value?.value,
+          properties: this.extractAXProperties(node),
+          childIds: node.childIds || [],
+        };
+
+        // Add backend DOM node ID for reliable targeting
+        if (node.backendDOMNodeId) {
+          axNode.backendNodeId = node.backendDOMNodeId;
+        }
+
+        // Try to generate a CSS selector for interactive elements
+        if (this.isInteractiveRole(node.role?.value)) {
+          axNode.selector = await this.generateSelectorForNode(cdpSession, node);
+        }
+
+        nodes.push(axNode);
+      }
 
       return {
         nodes,
@@ -142,6 +157,183 @@ export class PageStateExtractor {
       };
     } catch (error) {
       console.error('Failed to extract accessibility tree:', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Check if a role represents an interactive element
+   */
+  private isInteractiveRole(role?: string): boolean {
+    if (!role) return false;
+    
+    const interactiveRoles = new Set([
+      'button',
+      'link',
+      'textbox',
+      'searchbox',
+      'combobox',
+      'listbox',
+      'checkbox',
+      'radio',
+      'slider',
+      'spinbutton',
+      'switch',
+      'tab',
+      'menuitem',
+      'menuitemcheckbox',
+      'menuitemradio',
+    ]);
+
+    return interactiveRoles.has(role);
+  }
+
+  /**
+   * Generate a CSS selector for an accessibility node using its DOM node
+   */
+  private async generateSelectorForNode(
+    cdpSession: Electron.Debugger,
+    axNode: Protocol.Accessibility.AXNode
+  ): Promise<string | undefined> {
+    try {
+      const name = axNode.name?.value || '';
+      const role = axNode.role?.value || '';
+      
+      if (!name) {
+        return undefined;
+      }
+      
+      // Try to find a VISIBLE element and generate a reliable selector
+      const findScript = `
+        (function() {
+          const searchName = ${JSON.stringify(name)};
+          const searchRole = ${JSON.stringify(role)};
+          
+          // Helper: Check if element is visible
+          function isVisible(el) {
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            return rect.width > 0 && rect.height > 0 && 
+                   style.visibility !== 'hidden' && 
+                   style.display !== 'none' &&
+                   parseFloat(style.opacity) > 0;
+          }
+          
+          // Helper: Validate selector uniqueness and visibility
+          function validateSelector(selector) {
+            const matches = Array.from(document.querySelectorAll(selector));
+            const visibleMatches = matches.filter(isVisible);
+            
+            // Selector must match exactly one visible element
+            if (visibleMatches.length === 1) {
+              return selector;
+            }
+            
+            // If multiple visible matches, make it more specific
+            if (visibleMatches.length > 1 && visibleMatches[0].parentElement) {
+              const firstMatch = visibleMatches[0];
+              const siblings = Array.from(firstMatch.parentElement.children);
+              const index = siblings.indexOf(firstMatch) + 1;
+              return selector + ':nth-child(' + index + ')';
+            }
+            
+            return null;
+          }
+          
+          // Strategy 1: Try aria-label (most reliable for accessibility)
+          let ariaLabelSelector = '[aria-label="' + searchName.replace(/"/g, '\\\\"') + '"]';
+          let validated = validateSelector(ariaLabelSelector);
+          if (validated) return validated;
+          
+          // Strategy 2: Find by text content for buttons/links that are visible
+          const interactiveElements = Array.from(
+            document.querySelectorAll('button, a, [role="button"], [role="link"], [role="tab"]')
+          );
+          
+          const matchingElements = interactiveElements.filter(el => {
+            const text = el.textContent?.trim();
+            return text === searchName && isVisible(el);
+          });
+          
+          if (matchingElements.length > 0) {
+            const element = matchingElements[0];
+            
+            // Try aria-label on this specific element
+            const ariaLabel = element.getAttribute('aria-label');
+            if (ariaLabel) {
+              ariaLabelSelector = '[aria-label="' + ariaLabel.replace(/"/g, '\\\\"') + '"]';
+              validated = validateSelector(ariaLabelSelector);
+              if (validated) return validated;
+            }
+            
+            // Try ID only if it's unique and points to visible element
+            if (element.id) {
+              const idSelector = '#' + CSS.escape(element.id);
+              validated = validateSelector(idSelector);
+              if (validated) return validated;
+            }
+            
+            // Try data-testid
+            const testId = element.getAttribute('data-testid') || 
+                          element.getAttribute('data-test-id');
+            if (testId) {
+              const testSelector = '[data-testid="' + CSS.escape(testId) + '"]';
+              validated = validateSelector(testSelector);
+              if (validated) return validated;
+            }
+            
+            // Generate nth-child selector with parent context
+            if (element.parentElement) {
+              const siblings = Array.from(element.parentElement.children);
+              const index = siblings.indexOf(element) + 1;
+              let selector = element.tagName.toLowerCase();
+              
+              // Add first class for more specificity
+              if (element.className && typeof element.className === 'string') {
+                const classes = element.className.trim().split(/\\s+/);
+                if (classes.length > 0 && classes[0]) {
+                  selector += '.' + CSS.escape(classes[0]);
+                }
+              }
+              
+              selector += ':nth-child(' + index + ')';
+              
+              // Validate this selector works
+              validated = validateSelector(selector);
+              if (validated) return validated;
+            }
+          }
+          
+          // Strategy 3: Try finding any visible element with matching aria-label
+          const allElements = Array.from(document.querySelectorAll('*'));
+          const ariaMatches = allElements.filter(el => {
+            return el.getAttribute('aria-label') === searchName && isVisible(el);
+          });
+          
+          if (ariaMatches.length === 1) {
+            const element = ariaMatches[0];
+            const ariaLabel = element.getAttribute('aria-label');
+            return '[aria-label="' + ariaLabel.replace(/"/g, '\\\\"') + '"]';
+          }
+          
+          return null;
+        })()
+      `;
+
+      const result = await cdpSession.sendCommand('Runtime.evaluate', {
+        expression: findScript,
+        returnByValue: true,
+      });
+
+      if (result.result?.value) {
+        return result.result.value;
+      }
+
+      return undefined;
+    } catch (error) {
+      // Silently fail - selector generation is best-effort
+      console.debug('Selector generation failed for:', axNode.name?.value, error);
       return undefined;
     }
   }

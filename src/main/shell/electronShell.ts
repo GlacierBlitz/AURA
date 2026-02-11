@@ -21,6 +21,7 @@ export class ElectronShell {
   private currentAccessibilitySettings: AccessibilitySettings | null = null;
   private accessibilityCssKey: string | null = null;
   private suggestionsVisible: boolean = false;
+  private initialPageLoadComplete: boolean = false;
 
   constructor() {}
 
@@ -126,6 +127,11 @@ export class ElectronShell {
       this.notifyNavigation(url);
     });
 
+    this.webView.webContents.on('did-start-loading', () => {
+      // Reset initial load flag when starting a new navigation
+      this.initialPageLoadComplete = false;
+    });
+
     this.webView.webContents.on('dom-ready', () => {
       // Re-apply accessibility settings when DOM is ready
       this.applyCurrentAccessibilitySettings();
@@ -136,6 +142,9 @@ export class ElectronShell {
       const title = this.webView?.webContents.getTitle() || '';
       
       console.log(`[did-finish-load] fired for: ${url}`);
+      
+      // Mark initial load as complete
+      this.initialPageLoadComplete = true;
       
       // Debounce to prevent duplicate processing (iframes can trigger this multiple times)
       if (this.pageLoadDebounceTimer) {
@@ -160,7 +169,7 @@ export class ElectronShell {
     await this.initializeCDPSession();
 
     // Load homepage by default
-    const homepagePath = path.join(app.getAppPath(), 'assets', 'homepage.html');
+    const homepagePath = this.resolveAssetPath('homepage.html');
     await this.webView.webContents.loadFile(homepagePath);
   }
 
@@ -228,8 +237,26 @@ export class ElectronShell {
       throw new Error('Web view not initialized');
     }
 
-    const homepagePath = path.join(app.getAppPath(), 'assets', 'homepage.html');
+    const homepagePath = this.resolveAssetPath('homepage.html');
     await this.webView.webContents.loadFile(homepagePath);
+  }
+
+  /**
+   * Resolve path to asset file, handling both development and production
+   */
+  private resolveAssetPath(filename: string): string {
+    // In development, app.getAppPath() points to .vite/build/
+    // We need to go to the project root
+    const appPath = app.getAppPath();
+    
+    // Check if we're in development (path contains .vite/build)
+    if (appPath.includes('.vite')) {
+      // Go up from .vite/build to project root
+      return path.join(appPath, '..', '..', 'assets', filename);
+    }
+    
+    // In production, assets should be in the app directory
+    return path.join(appPath, 'assets', filename);
   }
 
   /**
@@ -282,14 +309,14 @@ export class ElectronShell {
     this.currentAccessibilitySettings = settings;
     console.log('Stored accessibility settings:', settings);
     
-    // Only reload if we have a real page loaded (not blank or empty)
+    // Only reload if initial page load is complete and we have a real page loaded
     const currentUrl = this.webView.webContents.getURL();
-    if (currentUrl && currentUrl !== 'about:blank' && !currentUrl.startsWith('devtools://')) {
+    if (this.initialPageLoadComplete && currentUrl && currentUrl !== 'about:blank' && !currentUrl.startsWith('devtools://')) {
       console.log('Reloading page to apply new accessibility settings');
       this.webView.webContents.reload();
     } else {
-      // No page loaded yet, just apply settings for next navigation
-      console.log('No page loaded yet, settings will apply on next navigation');
+      // Initial load not complete or no page loaded yet, just apply settings for next navigation
+      console.log('Initial load not complete or no page loaded yet, settings will apply on next navigation');
     }
   }
 

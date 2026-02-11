@@ -128,6 +128,14 @@ Field requirements:
 - For actions targeting elements, include both "selector" and "elementDescription"
 - "accessibility" action: setting and value must match the types listed above
 
+Selector guidelines:
+- Elements in the PAGE CONTEXT will have a "selector" field - USE THIS EXACT SELECTOR
+- If an element has a selector field, copy it exactly: {"action": "click", "selector": "#button-id", ...}
+- DO NOT create selectors from the "name" field - the name is the accessible label, not an HTML attribute
+- DO NOT use [name='...'] unless you're targeting a form input's name attribute
+- Valid selector formats: "#id", ".class", "[aria-label='text']", "button:nth-child(2)"
+- If no selector is provided, use: [aria-label="exact text"] or the element's text content
+
 Guidelines:
 - Break complex tasks into simple, atomic steps
 - Use the most specific selector available (id > aria-label > css selector)
