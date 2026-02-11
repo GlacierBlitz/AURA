@@ -7,6 +7,7 @@ import '../styles/ChatPanel.css';
 export function ChatPanel() {
   const { messages, inputText, setInputText, pipelineStatus, addMessage } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const lastSubmittedTranscriptRef = useRef<string>('');
   const {
     isListening,
     transcript,
@@ -46,12 +47,19 @@ export function ChatPanel() {
 
   // Auto-submit when transcript is received from voice recognition
   useEffect(() => {
-    if (transcript && !isListening && pipelineStatus !== 'executing') {
-      // Transcript is complete (user stopped speaking), auto-submit
-      submitInstruction(transcript);
-      resetTranscript();
-      setInputText('');
+    if (!transcript || isListening || pipelineStatus === 'executing') {
+      return;
     }
+
+    if (transcript === lastSubmittedTranscriptRef.current) {
+      return;
+    }
+
+    // Transcript is complete (user stopped speaking), auto-submit once
+    lastSubmittedTranscriptRef.current = transcript;
+    submitInstruction(transcript);
+    resetTranscript();
+    setInputText('');
   }, [transcript, isListening, pipelineStatus, resetTranscript, setInputText, submitInstruction]);
 
   const handleSubmit = (e: React.FormEvent) => {

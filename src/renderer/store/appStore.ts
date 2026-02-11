@@ -16,6 +16,7 @@ interface AppState {
   currentSummary: PageSummary | null;
   currentUrl: string | null;
   setCurrentSummary: (summary: PageSummary, url: string) => void;
+  setCurrentUrl: (url: string) => void;
 
   // Chat messages
   messages: ChatMessage[];
@@ -44,6 +45,7 @@ export const useAppStore = create<AppState>((set) => ({
   currentSummary: null,
   currentUrl: null,
   setCurrentSummary: (summary, url) => set({ currentSummary: summary, currentUrl: url }),
+  setCurrentUrl: (url) => set({ currentUrl: url }),
 
   // Chat messages
   messages: [],

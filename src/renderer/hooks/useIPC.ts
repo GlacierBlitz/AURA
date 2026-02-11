@@ -8,6 +8,7 @@ export function useIPC() {
   const {
     setPipelineStatus,
     setCurrentSummary,
+    setCurrentUrl,
     addMessage,
     setError,
     setPendingConfirmation,
@@ -31,6 +32,10 @@ export function useIPC() {
       setError(payload.error);
     });
 
+    const unsubscribeNavigation = window.electronAPI.onPipelineNavigation((payload) => {
+      setCurrentUrl(payload.url);
+    });
+
     const unsubscribeConfirm = window.electronAPI.onConfirmRequest((payload) => {
       setPendingConfirmation({
         action: payload.action,
@@ -44,9 +49,10 @@ export function useIPC() {
       unsubscribeStatus();
       unsubscribeMessage();
       unsubscribeError();
+      unsubscribeNavigation();
       unsubscribeConfirm();
     };
-  }, [setPipelineStatus, setCurrentSummary, addMessage, setError, setPendingConfirmation]);
+  }, [setPipelineStatus, setCurrentSummary, setCurrentUrl, addMessage, setError, setPendingConfirmation]);
 
   // Return methods to send messages to main process
   return {

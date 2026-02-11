@@ -24,6 +24,7 @@ export const IPC_CHANNELS = {
   PIPELINE_STATUS: 'pipeline:status',
   PIPELINE_MESSAGE: 'pipeline:message',
   PIPELINE_ERROR: 'pipeline:error',
+  PIPELINE_NAVIGATION: 'pipeline:navigation',
 
   // Confirmation (bidirectional)
   CONFIRM_REQUEST: 'confirm:request',
@@ -63,6 +64,10 @@ export interface PipelineSummaryPayload {
   summary: PageSummary;
   url: string;
   timestamp: string;
+}
+
+export interface PipelineNavigationPayload {
+  url: string;
 }
 
 export type PipelineStatus = 'idle' | 'extracting' | 'processing' | 'executing' | 'error';

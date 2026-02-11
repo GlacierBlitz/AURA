@@ -12,6 +12,7 @@ import type {
   PipelineStatusPayload,
   PipelineStatus,
   PipelineMessagePayload,
+  PipelineNavigationPayload,
   ChatMessage,
 } from '@shared/types';
 import type { ActionPlanResponse, ClarificationResponse } from '@shared/types';
@@ -148,6 +149,9 @@ async function createWindow() {
     // Register navigation listeners
     electronShell.onNavigate((url) => {
       console.log('Navigated to:', url);
+      if (!mainWindowRef) return;
+      const payload: PipelineNavigationPayload = { url };
+      sendToRenderer(mainWindowRef, IPC_CHANNELS.PIPELINE_NAVIGATION, payload);
     });
 
     electronShell.onPageLoad(async (url, title) => {
@@ -176,13 +180,13 @@ async function createWindow() {
  */
 async function initialize() {
   try {
-    // Set up permissions for microphone (for voice input)
+    // Set up permissions for microphone (for voice input) and fullscreen videos
     session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
       const url = webContents.getURL();
       console.log('Permission request for:', permission, 'from:', url);
       
-      // Allow all media permissions for our app's renderer
-      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture') {
+      // Allow all media permissions and fullscreen for our app's renderer
+      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture' || permission === 'fullscreen') {
         console.log('Granting permission:', permission);
         callback(true);
         return;
@@ -195,8 +199,8 @@ async function initialize() {
     // Also handle permission check (not just request)
     session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
       console.log('Permission check for:', permission);
-      // Allow media permissions
-      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture') {
+      // Allow media permissions and fullscreen
+      if (permission === 'media' || permission === 'microphone' || permission === 'audioCapture' || permission === 'fullscreen') {
         return true;
       }
       return false;

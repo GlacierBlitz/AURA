@@ -12,6 +12,7 @@ import type {
   PipelineStatusPayload,
   PipelineMessagePayload,
   PipelineErrorPayload,
+  PipelineNavigationPayload,
   ConfirmationRequestPayload,
   ConfirmationResponsePayload,
   LogQueryPayload,
@@ -40,6 +41,7 @@ export interface ElectronAPI {
   onPipelineStatus: (callback: (payload: PipelineStatusPayload) => void) => () => void;
   onPipelineMessage: (callback: (payload: PipelineMessagePayload) => void) => () => void;
   onPipelineError: (callback: (payload: PipelineErrorPayload) => void) => () => void;
+  onPipelineNavigation: (callback: (payload: PipelineNavigationPayload) => void) => () => void;
 
   // Confirmation dialog
   onConfirmRequest: (callback: (payload: ConfirmationRequestPayload) => void) => () => void;
@@ -139,6 +141,16 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.PIPELINE_ERROR, listener);
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.PIPELINE_ERROR, listener);
+    };
+  },
+
+  onPipelineNavigation: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: PipelineNavigationPayload) => {
+      callback(payload);
+    };
+    ipcRenderer.on(IPC_CHANNELS.PIPELINE_NAVIGATION, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.PIPELINE_NAVIGATION, listener);
     };
   },
 

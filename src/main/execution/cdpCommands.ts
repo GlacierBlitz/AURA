@@ -157,6 +157,34 @@ export async function clickElement(
   if (!result.result.value) {
     throw new Error(`Failed to click element: ${finalSelector}`);
   }
+
+  // Fullscreen fallback: some players ignore synthetic click, try explicit fullscreen request
+  const selectorText = `${selector} ${finalSelector}`.toLowerCase();
+  if (selectorText.includes('full screen') || selectorText.includes('fullscreen')) {
+    await cdpSession.sendCommand('Runtime.evaluate', {
+      expression: `
+        (function() {
+          const player = document.querySelector('.html5-video-player');
+          const video = document.querySelector('video');
+          const target = player || video;
+          if (!target) return false;
+
+          const request = target.requestFullscreen ||
+            target.webkitRequestFullscreen ||
+            target.mozRequestFullScreen ||
+            target.msRequestFullscreen;
+
+          if (request) {
+            request.call(target);
+            return true;
+          }
+
+          return false;
+        })()
+      `,
+      returnByValue: true,
+    });
+  }
 }
 
 /**
@@ -213,6 +241,7 @@ async function tryFindVisibleElement(
     const findScript = `
       (function() {
         const searchText = ${JSON.stringify(searchText)};
+        const searchTextLower = searchText.toLowerCase();
         
         function isVisible(el) {
           if (!el) return false;
@@ -222,6 +251,25 @@ async function tryFindVisibleElement(
                  style.visibility !== 'hidden' && 
                  style.display !== 'none' &&
                  parseFloat(style.opacity) > 0;
+        }
+
+        // Fullscreen-specific fallbacks (YouTube and common players)
+        if (searchTextLower.includes('full screen') || searchTextLower.includes('fullscreen')) {
+          const fullscreenSelectors = [
+            'button.ytp-fullscreen-button',
+            '[aria-label*="Full screen" i]',
+            '[title*="Full screen" i]',
+            'button[title*="Full screen" i]',
+            'button[aria-label*="full screen" i]',
+            '[data-title-no-tooltip*="Full screen" i]'
+          ];
+
+          for (const selector of fullscreenSelectors) {
+            const el = document.querySelector(selector);
+            if (isVisible(el)) {
+              return selector;
+            }
+          }
         }
         
         // Try aria-label first (exact match)

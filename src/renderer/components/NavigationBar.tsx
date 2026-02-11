@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import '../styles/NavigationBar.css';
 import { Settings, RotateCw, MoveLeft, MoveRight, X, Home } from 'lucide-react';
+import { useAppStore } from '../store/appStore';
 
 
 
@@ -14,6 +15,7 @@ interface NavigationBarProps {
 export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccessibility }: NavigationBarProps) {
   const [url, setUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const currentUrl = useAppStore((state) => state.currentUrl);
 
   // Keep inputRef for focusing when needed
 
@@ -62,6 +64,31 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccess
     const value = e.target.value;
     setUrl(value);
   };
+
+  useEffect(() => {
+    if (!currentUrl) {
+      return;
+    }
+
+    if (document.activeElement === inputRef.current) {
+      return;
+    }
+
+    const isHomePage =
+      currentUrl === 'app:home' ||
+      (currentUrl.startsWith('file://') && currentUrl.includes('/assets/homepage.html'));
+
+    if (isHomePage) {
+      if (url !== '') {
+        setUrl('');
+      }
+      return;
+    }
+
+    if (currentUrl !== url) {
+      setUrl(currentUrl);
+    }
+  }, [currentUrl, url]);
 
   // suggestions removed — autocomplete disabled
 

@@ -185,6 +185,8 @@ export function buildSummaryPrompt(
     prompt += `\n\nPREVIOUS SUMMARY (for reference, page may have changed):\n${previousSummary}`;
   }
 
+  prompt += `\n\nPAGE CONTEXT (UNTRUSTED DATA):\n${JSON.stringify(pageContext)}`;
+
   return prompt;
 }
 

@@ -1,4 +1,7 @@
 import type { PageSummary, ActionPlanResponse, ClarificationResponse, ConversationTurn, ActionResult } from '@shared/types';
+import { app } from 'electron';
+import { promises as fs } from 'fs';
+import path from 'path';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { PageStateExtractor } from './pageStateExtractor';
 import { ContentSanitizer } from './contentSanitizer';
@@ -31,12 +34,21 @@ export class IntentPipeline {
   } | null = null;
   private readonly PAGE_STATE_CACHE_TTL = 5000; // 5 seconds
 
+  private summaryCache: Map<string, { summary: PageSummary; timestamp: number }> = new Map();
+  private readonly SUMMARY_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+  private summaryCacheLoaded: boolean = false;
+  private summaryCacheDir: string;
+  private summaryCacheFile: string;
+  private summaryCacheSaveTimer: NodeJS.Timeout | null = null;
+
   constructor(orchestrator: LLMOrchestrator, accessibilityCallback?: AccessibilityUpdateCallback) {
     this.extractor = new PageStateExtractor();
     this.sanitizer = new ContentSanitizer();
     this.orchestrator = orchestrator;
     this.actionEngine = new ActionExecutionEngine(accessibilityCallback);
     this.contextManager = new ContextManager();
+    this.summaryCacheDir = path.join(app.getPath('userData'), 'summary-cache');
+    this.summaryCacheFile = path.join(this.summaryCacheDir, 'summary-cache.json');
   }
 
   /**
@@ -144,6 +156,18 @@ export class IntentPipeline {
       // Update status: extracting
       this.updateStatus('extracting');
 
+      // Step 0: Check summary cache by URL before extracting page state
+      await this.ensureSummaryCacheLoaded();
+      const cachedSummary = this.getCachedSummary(url);
+      if (cachedSummary) {
+        console.log('✓ Using cached summary for URL (skip extraction)');
+        this.updateStatus('idle');
+        if (this.onSummaryCallback) {
+          this.onSummaryCallback(cachedSummary, url);
+        }
+        return;
+      }
+
       // Step 1: Get or extract page state (uses cache if available)
       const sanitizedState = await this.getOrExtractPageState(cdpSession, url);
 
@@ -154,6 +178,9 @@ export class IntentPipeline {
       console.log('Generating summary with LLM...');
       const summary = await this.orchestrator.generateSummary(sanitizedState);
       console.log(`Summary generated with confidence ${summary.confidence}`);
+
+      // Cache summary for this URL to avoid repeat LLM calls
+      this.setCachedSummary(url, summary);
 
       // Step 3: Send to renderer
       this.updateStatus('idle');
@@ -312,6 +339,93 @@ export class IntentPipeline {
   private updateStatus(status: string): void {
     if (this.onStatusCallback) {
       this.onStatusCallback(status);
+    }
+  }
+
+  private getCachedSummary(url: string): PageSummary | null {
+    const entry = this.summaryCache.get(url);
+    if (!entry) {
+      return null;
+    }
+
+    const age = Date.now() - entry.timestamp;
+    if (age > this.SUMMARY_CACHE_TTL) {
+      this.summaryCache.delete(url);
+      return null;
+    }
+
+    return entry.summary;
+  }
+
+  private setCachedSummary(url: string, summary: PageSummary): void {
+    this.summaryCache.set(url, { summary, timestamp: Date.now() });
+    this.scheduleSummaryCacheSave();
+  }
+
+  private async ensureSummaryCacheLoaded(): Promise<void> {
+    if (this.summaryCacheLoaded) {
+      return;
+    }
+
+    try {
+      await fs.mkdir(this.summaryCacheDir, { recursive: true });
+      const data = await fs.readFile(this.summaryCacheFile, 'utf-8');
+      const parsed = JSON.parse(data);
+      if (parsed && typeof parsed === 'object') {
+        Object.entries(parsed).forEach(([key, entry]: [string, any]) => {
+          if (entry && typeof entry.timestamp === 'number' && entry.summary) {
+            this.summaryCache.set(key, entry as { summary: PageSummary; timestamp: number });
+          }
+        });
+      }
+    } catch (error: any) {
+      if (error.code !== 'ENOENT') {
+        console.warn('[SummaryCache] Failed to load cache, starting fresh:', error.message);
+      }
+    }
+
+    this.pruneSummaryCache();
+    this.summaryCacheLoaded = true;
+  }
+
+  private pruneSummaryCache(): void {
+    const now = Date.now();
+    let pruned = 0;
+    for (const [key, entry] of this.summaryCache.entries()) {
+      if (now - entry.timestamp > this.SUMMARY_CACHE_TTL) {
+        this.summaryCache.delete(key);
+        pruned++;
+      }
+    }
+    if (pruned > 0) {
+      console.log(`[SummaryCache] Pruned ${pruned} expired entries`);
+    }
+  }
+
+  private scheduleSummaryCacheSave(): void {
+    if (this.summaryCacheSaveTimer) {
+      return;
+    }
+
+    this.summaryCacheSaveTimer = setTimeout(() => {
+      this.saveSummaryCache().catch((error) => {
+        console.warn('[SummaryCache] Failed to save cache:', error.message || error);
+      });
+    }, 1000);
+  }
+
+  private async saveSummaryCache(): Promise<void> {
+    this.summaryCacheSaveTimer = null;
+    try {
+      await fs.mkdir(this.summaryCacheDir, { recursive: true });
+      const data: Record<string, { summary: PageSummary; timestamp: number }> = {};
+      for (const [key, entry] of this.summaryCache.entries()) {
+        data[key] = entry;
+      }
+      await fs.writeFile(this.summaryCacheFile, JSON.stringify(data, null, 2), 'utf-8');
+      console.log(`[SummaryCache] Saved ${this.summaryCache.size} entries to disk`);
+    } catch (error: any) {
+      console.warn('[SummaryCache] Failed to save cache:', error.message || error);
     }
   }
 }

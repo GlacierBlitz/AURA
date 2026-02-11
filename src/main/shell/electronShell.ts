@@ -19,7 +19,8 @@ export class ElectronShell {
   private pageLoadDebounceTimer: NodeJS.Timeout | null = null;
   private chatPanelVisible: boolean = true;
   private currentAccessibilitySettings: AccessibilitySettings | null = null;
-  private accessibilityCssKey: string | null = null;
+  private accessibilityApplyToken: number = 0;
+  private readonly accessibilityStyleElementId: string = 'aura-accessibility-style';
   private suggestionsVisible: boolean = false;
   private initialPageLoadComplete: boolean = false;
 
@@ -89,6 +90,9 @@ export class ElectronShell {
         sandbox: true,
         // Enable web security
         webSecurity: true,
+        // Allow fullscreen API
+        allowRunningInsecureContent: false,
+        experimentalFeatures: false,
       },
     });
 
@@ -118,18 +122,55 @@ export class ElectronShell {
 
     // Set up navigation listeners
     this.webView.webContents.on('did-navigate', (_event, url) => {
-      // Clear CSS key since page is reloading - old key is invalid
-      this.accessibilityCssKey = null;
+      console.log('Navigation detected');
       this.notifyNavigation(url);
     });
 
     this.webView.webContents.on('did-navigate-in-page', (_event, url) => {
       this.notifyNavigation(url);
+
+      const title = this.webView?.webContents.getTitle() || '';
+      if (url !== this.lastProcessedUrl) {
+        console.log(`[did-navigate-in-page] URL changed from ${this.lastProcessedUrl} to ${url}, scheduling processPageLoad`);
+        this.lastProcessedUrl = url;
+        if (this.pageLoadDebounceTimer) {
+          clearTimeout(this.pageLoadDebounceTimer);
+        }
+        this.pageLoadDebounceTimer = setTimeout(() => {
+          this.notifyPageLoad(url, title);
+        }, 500);
+      } else {
+        console.log(`[did-navigate-in-page] URL unchanged (${url}), skipping`);
+      }
+    });
+
+    // Handle fullscreen video requests
+    this.webView.webContents.on('enter-full-screen', () => {
+      console.log('Video entered fullscreen mode');
+      if (this.mainWindow) {
+        this.mainWindow.setFullScreen(true);
+      }
+    });
+
+    this.webView.webContents.on('leave-full-screen', () => {
+      console.log('Video left fullscreen mode');
+      if (this.mainWindow) {
+        this.mainWindow.setFullScreen(false);
+      }
+    });
+
+    // Handle Escape key to exit fullscreen
+    this.webView.webContents.on('before-input-event', (event, input) => {
+      if (input.key === 'Escape' && this.mainWindow?.isFullScreen()) {
+        console.log('Escape pressed, exiting fullscreen');
+        this.mainWindow.setFullScreen(false);
+      }
     });
 
     this.webView.webContents.on('did-start-loading', () => {
       // Reset initial load flag when starting a new navigation
       this.initialPageLoadComplete = false;
+      console.log('Page loading started');
     });
 
     this.webView.webContents.on('dom-ready', () => {
@@ -307,6 +348,7 @@ export class ElectronShell {
 
     // Store settings for re-injection on navigation
     this.currentAccessibilitySettings = settings;
+    const applyToken = ++this.accessibilityApplyToken;
     console.log('Stored accessibility settings:', settings);
     console.log('WebView state - isLoading:', this.webView.webContents.isLoading());
     console.log('WebView state - URL:', this.webView.webContents.getURL());
@@ -321,7 +363,7 @@ export class ElectronShell {
     
     if (hasValidUrl && !this.webView.webContents.isLoading()) {
       console.log('Applying accessibility settings to current page without reload');
-      this.applyCurrentAccessibilitySettings().catch(error => {
+      this.applyCurrentAccessibilitySettings(applyToken).catch(error => {
         console.error('Failed to apply accessibility settings immediately:', error);
         console.error('Error details:', error.stack);
       });
@@ -337,12 +379,13 @@ export class ElectronShell {
    * Apply the current accessibility settings to the webView
    * Called on navigation events to persist settings
    */
-  private async applyCurrentAccessibilitySettings(): Promise<void> {
+  private async applyCurrentAccessibilitySettings(applyToken?: number): Promise<void> {
     if (!this.webView || !this.currentAccessibilitySettings) {
       return;
     }
 
     try {
+      const activeToken = applyToken ?? this.accessibilityApplyToken;
       const settings = this.currentAccessibilitySettings;
       console.log('Applying accessibility CSS to page:', settings);
       
@@ -358,33 +401,55 @@ export class ElectronShell {
         });
       }
 
-      // Always remove previous CSS if we have a key
-      if (this.accessibilityCssKey) {
-        try {
-          await this.webView.webContents.removeInsertedCSS(this.accessibilityCssKey);
-          console.log('Removed previous accessibility CSS with key:', this.accessibilityCssKey);
-        } catch (error) {
-          console.error('Failed to remove previous CSS:', error);
-        }
-        this.accessibilityCssKey = null;
-      }
-      
-      // If default profile, don't insert any CSS (page should be in original state)
-      if (settings.profile === 'default') {
-        console.log('Default profile - no CSS modifications applied');
+      if (activeToken !== this.accessibilityApplyToken) {
+        console.log('Accessibility settings changed during apply, skipping stale run');
         return;
       }
-      
-      const css = generateAccessibilityCSS(settings);
-      
-      // Only insert CSS if there are actual modifications
+
+      if (activeToken !== this.accessibilityApplyToken) {
+        console.log('Accessibility settings changed during clear, skipping stale run');
+        return;
+      }
+
+      const css = settings.profile === 'default' ? '' : generateAccessibilityCSS(settings);
+      const styleId = this.accessibilityStyleElementId;
+
+      await this.webView.webContents.executeJavaScript(
+        `
+          (function() {
+            const styleId = ${JSON.stringify(styleId)};
+            const cssText = ${JSON.stringify(css)};
+            let styleEl = document.getElementById(styleId);
+
+            if (!cssText) {
+              if (styleEl && styleEl.parentNode) {
+                styleEl.parentNode.removeChild(styleEl);
+              }
+              return true;
+            }
+
+            if (!styleEl) {
+              styleEl = document.createElement('style');
+              styleEl.id = styleId;
+              styleEl.type = 'text/css';
+              const target = document.head || document.documentElement;
+              if (target) {
+                target.appendChild(styleEl);
+              }
+            }
+
+            styleEl.textContent = cssText;
+            return true;
+          })()
+        `,
+        true
+      );
+
       if (css.trim().length > 0) {
-        // Insert CSS into the page with user origin for high priority
-        this.accessibilityCssKey = await this.webView.webContents.insertCSS(css, { cssOrigin: 'user' });
-        console.log('Accessibility CSS applied successfully with key:', this.accessibilityCssKey);
+        console.log('Accessibility CSS applied via style element');
         console.log('Applied CSS length:', css.length, 'characters');
       } else {
-        console.log('No accessibility CSS to apply');
+        console.log('Default profile - accessibility style element removed');
       }
     } catch (error) {
       console.error('Error in applyCurrentAccessibilitySettings:', error);
