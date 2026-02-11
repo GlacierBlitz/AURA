@@ -1,6 +1,6 @@
 import { app, BrowserWindow, session } from 'electron';
 import { ElectronShell } from './shell/electronShell';
-import { registerIPCHandlers, sendToRenderer } from './ipc/ipcHandlers';
+import { registerIPCHandlers, sendToRenderer, setBrowserWindowForIPC } from './ipc/ipcHandlers';
 import { IntentPipeline } from './pipeline/intentPipeline';
 import { LLMOrchestrator } from './llm/llmOrchestrator';
 import { OpenAIAdapter } from './llm/providers/openaiAdapter';
@@ -146,6 +146,12 @@ async function createWindow() {
   try {
     const mainWindow = await electronShell.createMainWindow();
     mainWindowRef = mainWindow;
+
+    // Set browser window in pipeline for read commands
+    intentPipeline.setBrowserWindow(mainWindow);
+    
+    // Set browser window in IPC handlers for read commands
+    setBrowserWindowForIPC(mainWindow);
 
     // Clear reference when window is closed
     mainWindow.on('closed', () => {

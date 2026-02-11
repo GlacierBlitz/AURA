@@ -36,7 +36,7 @@ export interface ElectronAPI {
   updateAccessibility?: (payload: UpdateAccessibilityPayload) => void;
   setModalOpen?: (payload: SetModalOpenPayload) => void;
   transcribeAudio?: (payload: TranscribeAudioPayload) => Promise<TranscribeAudioResponse>;
-  readPage?: () => Promise<void>;
+  readPage?: (payload?: ReadPagePayload) => Promise<void>;
   invoke?: (channel: string, payload: any) => Promise<any>;
 
   // Listen for pipeline events from main process
@@ -106,8 +106,8 @@ const electronAPI: ElectronAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.USER_TRANSCRIBE_AUDIO, payload);
   },
 
-  readPage: (): Promise<void> => {
-    return ipcRenderer.invoke(IPC_CHANNELS.USER_READ_PAGE);
+  readPage: (payload?: ReadPagePayload): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.USER_READ_PAGE, payload);
   },
 
   invoke: (channel: string, payload: any): Promise<any> => {

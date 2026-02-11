@@ -157,8 +157,13 @@ export interface TranscribeAudioResponse {
 export interface SetSuggestionsVisiblePayload {
   visible: boolean;
 }
+
 export interface PageContentPayload {
   text: string;
   title: string;
   url: string;
+}
+
+export interface ReadPagePayload {
+  contentType?: 'full' | 'main' | 'heading' | 'paragraph' | 'first-paragraph' | 'all-paragraphs' | 'headings' | 'list' | 'images' | 'links';
 }
