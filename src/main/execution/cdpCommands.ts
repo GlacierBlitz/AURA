@@ -297,29 +297,244 @@ export async function typeText(
   selector: string,
   text: string
 ): Promise<void> {
-  // Verify element is interactable
-  const elementInfo = await queryElement(cdpSession, selector);
+  // Try to find element with fallback logic
+  let elementInfo = await queryElement(cdpSession, selector);
+  let finalSelector = selector;
+  
+  // If element not found, try fallback strategies
   if (!elementInfo.exists) {
-    throw new Error(`Element not found: ${selector}`);
+    console.log(`Primary selector "${selector}" not found, trying fallbacks...`);
+    
+    // Enhanced YouTube-specific search input detection
+    const smartSelector = await cdpSession.sendCommand('Runtime.evaluate', {
+      expression: `
+        (function() {
+          // Function to check if element is truly visible and interactable
+          function isInteractable(el) {
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            return rect.width > 0 && rect.height > 0 && 
+                   style.visibility !== 'hidden' && 
+                   style.display !== 'none' &&
+                   parseFloat(style.opacity) > 0 &&
+                   !el.disabled;
+          }
+          
+          // YouTube-specific: find the actual active search input
+          // Method 1: Look for input that's currently focused or most recently interacted with
+          let searchInput = document.activeElement;
+          if (searchInput && searchInput.tagName === 'INPUT' && isInteractable(searchInput)) {
+            const inputType = searchInput.type || 'text';
+            if (inputType === 'search' || inputType === 'text' || !inputType) {
+              return { selector: generateSelector(searchInput), method: 'activeElement' };
+            }
+          }
+          
+          // Method 2: YouTube main search input (header)
+          searchInput = document.querySelector('input#search');
+          if (searchInput && isInteractable(searchInput)) {
+            return { selector: '#search', method: 'youtube.header' };
+          }
+          
+          // Method 3: Look for search input by name attribute
+          searchInput = document.querySelector('input[name="search_query"]');
+          if (searchInput && isInteractable(searchInput)) {
+            return { selector: 'input[name="search_query"]', method: 'youtube.name' };
+          }
+          
+          // Method 4: Find search input in visible search forms
+          const searchForms = Array.from(document.querySelectorAll('form'));
+          for (const form of searchForms) {
+            if (!isInteractable(form)) continue;
+            
+            const inputs = form.querySelectorAll('input[type="search"], input[type="text"], input:not([type])');
+            for (const input of inputs) {
+              if (isInteractable(input)) {
+                const placeholder = input.placeholder?.toLowerCase() || '';
+                const ariaLabel = input.getAttribute('aria-label')?.toLowerCase() || '';
+                if (placeholder.includes('search') || ariaLabel.includes('search')) {
+                  return { selector: generateSelector(input), method: 'form.search' };
+                }
+              }
+            }
+          }
+          
+          // Method 5: Find any interactive search-related input
+          const allInputs = Array.from(document.querySelectorAll('input, [role="searchbox"]'));
+          for (const input of allInputs) {
+            if (!isInteractable(input)) continue;
+            
+            const placeholder = input.placeholder?.toLowerCase() || '';
+            const ariaLabel = input.getAttribute('aria-label')?.toLowerCase() || '';
+            const role = input.getAttribute('role') || '';
+            
+            if (placeholder.includes('search') || ariaLabel.includes('search') || role === 'searchbox') {
+              return { selector: generateSelector(input), method: 'generic.search' };
+            }
+          }
+          
+          // Helper function to generate a reliable selector
+          function generateSelector(element) {
+            // Prefer ID if available and unique
+            if (element.id) {
+              const testId = document.querySelectorAll('#' + CSS.escape(element.id));
+              if (testId.length === 1) {
+                return '#' + CSS.escape(element.id);
+              }
+            }
+            
+            // Use name attribute if available
+            if (element.name) {
+              return \`input[name="\${CSS.escape(element.name)}"]\`;
+            }
+            
+            // Use a combination of tag and attributes for uniqueness
+            let selector = element.tagName.toLowerCase();
+            
+            if (element.type) {
+              selector += \`[type="\${element.type}"]\`;
+            }
+            
+            if (element.className) {
+              const classes = element.className.split(' ').filter(cls => cls.trim());
+              if (classes.length > 0) {
+                selector += '.' + classes.map(cls => CSS.escape(cls)).join('.');
+              }
+            }
+            
+            return selector;
+          }
+          
+          return { selector: null, method: 'none' };
+        })()
+      `,
+      returnByValue: true,
+    });
+
+    if (smartSelector.result?.value?.selector) {
+      console.log(`Smart selector found: ${smartSelector.result.value.selector} via ${smartSelector.result.value.method}`);
+      const smartElement = await queryElement(cdpSession, smartSelector.result.value.selector);
+      if (smartElement.exists && smartElement.interactable) {
+        finalSelector = smartSelector.result.value.selector;
+        elementInfo = smartElement;
+      }
+    }
+    
+    // If smart selector didn't work, try basic fallbacks
+    if (!elementInfo.exists) {
+      const fallbackSelectors = [
+        'input#search',
+        'input[name="search_query"]',
+        'input[placeholder*="earch" i]',
+        'input[aria-label*="earch" i]',
+        '[role="searchbox"]',
+        'input[type="search"]',
+        'input[type="text"]',
+        'input:not([type])'
+      ];
+      
+      for (const fallback of fallbackSelectors) {
+        if (fallback === selector) continue; // Skip if it's the same as original
+        
+        elementInfo = await queryElement(cdpSession, fallback);
+        if (elementInfo.exists && elementInfo.interactable) {
+          console.log(`Found element using fallback selector: ${fallback}`);
+          finalSelector = fallback;
+          break;
+        }
+      }
+    }
+  }
+  
+  // If still not found, try to wait a bit and retry (element might be loading)
+  if (!elementInfo.exists) {
+    console.log('Element not found, waiting 2 seconds for page to load...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Retry with original selector
+    elementInfo = await queryElement(cdpSession, selector);
+    if (!elementInfo.exists) {
+      // Try fallbacks again
+      for (const fallback of [
+        'input#search',
+        'input[name="search_query"]',
+        '[role="searchbox"]'
+      ]) {
+        elementInfo = await queryElement(cdpSession, fallback);
+        if (elementInfo.exists) {
+          finalSelector = fallback;
+          break;
+        }
+      }
+    }
+  }
+  
+  if (!elementInfo.exists) {
+    throw new Error(`Element not found: ${selector} (tried multiple fallbacks)`);
   }
   if (!elementInfo.interactable) {
-    throw new Error(`Element not editable: ${selector}`);
+    throw new Error(`Element not editable: ${finalSelector}`);
   }
 
-  // Focus element and set value
+  // Focus element and set value with aggressive clearing
   const result = await cdpSession.sendCommand('Runtime.evaluate', {
     expression: `
-      (function() {
-        const element = document.querySelector(${JSON.stringify(selector)});
+      (async function() {
+        const element = document.querySelector(${JSON.stringify(finalSelector)});
         if (!element) return false;
+        
+        // Ensure element is visible and interactable
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        // Triple-click to select all text, then type (most reliable method)
         element.focus();
-        element.value = ${JSON.stringify(text)};
+        await new Promise(r => setTimeout(r, 100)); // Wait for focus
+        
+        // Click three times to select all text (universal method)
+        element.click();
+        element.click();  
+        element.click();
+        
+        await new Promise(r => setTimeout(r, 50)); // Brief pause
+        
+        // Directly set value to empty and trigger events
+        element.value = '';
         element.dispatchEvent(new Event('input', { bubbles: true }));
         element.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        await new Promise(r => setTimeout(r, 50)); // Brief pause
+        
+        // Now type the new text
+        const textToType = ${JSON.stringify(text)};
+        element.value = textToType;
+        
+        // Trigger comprehensive input events
+        element.dispatchEvent(new InputEvent('input', { 
+          data: textToType, 
+          inputType: 'insertText',
+          bubbles: true 
+        }));
+        element.dispatchEvent(new Event('input', { bubbles: true }));  
+        element.dispatchEvent(new Event('change', { bubbles: true }));
+        
+        // Force React to recognize the change by dispatching keyup
+        element.dispatchEvent(new KeyboardEvent('keyup', { 
+          key: textToType.slice(-1),
+          bubbles: true 
+        }));
+        
+        // Ensure focus is maintained  
+        element.focus();
+        
+        console.log('YouTube Search - Final value:', element.value);
+        console.log('YouTube Search - Element focused:', document.activeElement === element);
+        
         return true;
       })()
     `,
     returnByValue: true,
+    awaitPromise: true
   });
 
   if (result.exceptionDetails) {
@@ -327,8 +542,114 @@ export async function typeText(
   }
 
   if (!result.result.value) {
-    throw new Error(`Failed to type text into: ${selector}`);
+    throw new Error(`Failed to type text into: ${finalSelector}`);
   }
+  
+  console.log(`Successfully typed "${text}" into element: ${finalSelector}`);
+}
+
+/**
+ * Submit a form
+ */
+export async function submitForm(
+  cdpSession: Protocol.ProtocolMapping.API,
+  selector: string
+): Promise<void> {
+  const result = await cdpSession.sendCommand('Runtime.evaluate', {
+    expression: `
+      (function() {
+        let element = document.querySelector(${JSON.stringify(selector)});
+        
+        // If selector didn't find element, try fallback strategies
+        if (!element) {
+          console.log('Primary selector failed, trying fallbacks...');
+          
+          // YouTube-specific: try search input
+          element = document.querySelector('input#search');
+          
+          // Generic fallback: find any visible input field with a parent form
+          if (!element) {
+            const inputs = document.querySelectorAll('input[type="text"], input[type="search"], input:not([type])');
+            for (const input of inputs) {
+              if (input.offsetParent !== null && input.closest('form')) {
+                element = input;
+                break;
+              }
+            }
+          }
+          
+          // Still no element? Try to find any form
+          if (!element) {
+            element = document.querySelector('form');
+          }
+          
+          if (!element) {
+            return { success: false, reason: 'No form or input element found' };
+          }
+        }
+        
+        // If the element is a form, submit it directly
+        if (element.tagName === 'FORM') {
+          element.submit();
+          return { success: true, method: 'form.submit()' };
+        }
+        
+        // If it's a button inside a form, click it
+        if (element.tagName === 'BUTTON' || (element.tagName === 'INPUT' && element.type === 'submit')) {
+          element.click();
+          return { success: true, method: 'button.click()' };
+        }
+        
+        // Try to find parent form and submit
+        const form = element.closest('form');
+        if (form) {
+          // First try to find and click submit button (better for SPAs like YouTube)
+          const submitBtn = form.querySelector('button[type="submit"], input[type="submit"], button[aria-label*="earch" i]');
+          if (submitBtn) {
+            submitBtn.click();
+            return { success: true, method: 'submitButton.click()' };
+          }
+          
+          // Fallback to form.submit()
+          form.submit();
+          return { success: true, method: 'parentForm.submit()' };
+        }
+        
+        // For YouTube search specifically
+        if (element.id === 'search' || element.getAttribute('name') === 'search_query') {
+          const searchBtn = document.querySelector('#search-icon-legacy, button[aria-label*="earch" i]');
+          if (searchBtn) {
+            searchBtn.click();
+            return { success: true, method: 'youtube.searchButton.click()' };
+          }
+        }
+        
+        // Last resort: simulate Enter key press
+        const enterEvent = new KeyboardEvent('keydown', {
+          key: 'Enter',
+          code: 'Enter',
+          keyCode: 13,
+          which: 13,
+          bubbles: true,
+          cancelable: true
+        });
+        element.dispatchEvent(enterEvent);
+        return { success: true, method: 'Enter.keypress()' };
+      })()
+    `,
+    returnByValue: true,
+  });
+
+  if (result.exceptionDetails) {
+    throw new Error(`Failed to submit form: ${result.exceptionDetails.text}`);
+  }
+
+  const submitResult = result.result.value as { success: boolean; reason?: string; method?: string };
+  if (!submitResult.success) {
+    throw new Error(`Failed to submit form: ${submitResult.reason || 'Unknown error'}`);
+  }
+  
+  console.log(`Form submitted using: ${submitResult.method}`);
 }
 
 /**

@@ -17,6 +17,7 @@ import type {
   NavigateAction,
   ScrollAction,
   AccessibilityAction,
+  SubmitAction,
 } from '@shared/types';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { ActionValidator, ValidationResult } from './actionValidator';
@@ -149,8 +150,9 @@ export class ActionExecutionEngine {
         return this.executeScroll(cdpSession, action as ScrollAction);
       case 'accessibility':
         return this.executeAccessibility(cdpSession, action as AccessibilityAction);
-      case 'select':
       case 'submit':
+        return this.executeSubmit(cdpSession, action as SubmitAction);
+      case 'select':
       case 'wait':
       case 'extract':
       case 'back':
@@ -215,8 +217,9 @@ export class ActionExecutionEngine {
     throw new Error('SELECT action not yet implemented');
   }
 
-  private async executeSubmit(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
-    throw new Error('SUBMIT action not yet implemented');
+  private async executeSubmit(cdpSession: Protocol.ProtocolMapping.API, action: SubmitAction): Promise<void> {
+    console.log(`Executing SUBMIT on selector: ${action.selector}`);
+    await cdp.submitForm(cdpSession, action.selector);
   }
 
   private async executeWait(cdpSession: Protocol.ProtocolMapping.API, action: ActionDescriptor): Promise<void> {
