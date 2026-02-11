@@ -20,6 +20,7 @@ import type {
   SubmitAction,
   OpenAccessibilityPanelAction,
   ReadContentAction,
+  StopReadingAction,
 } from '@shared/types';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { ActionValidator, ValidationResult } from './actionValidator';
@@ -43,6 +44,7 @@ export interface ExecutionConfig {
 export type AccessibilityUpdateCallback = (settings: Partial<AccessibilitySettings>) => void;
 export type OpenAccessibilityPanelCallback = () => void;
 export type ReadContentCallback = (content: string) => void;
+export type StopReadingCallback = () => void;
 
 const DEFAULT_CONFIG: ExecutionConfig = {
   maxRetries: 3,
@@ -55,16 +57,19 @@ export class ActionExecutionEngine {
   private accessibilityCallback?: AccessibilityUpdateCallback;
   private openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback;
   private readContentCallback?: ReadContentCallback;
+  private stopReadingCallback?: StopReadingCallback;
 
   constructor(
     accessibilityCallback?: AccessibilityUpdateCallback,
     openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback,
-    readContentCallback?: ReadContentCallback
+    readContentCallback?: ReadContentCallback,
+    stopReadingCallback?: StopReadingCallback
   ) {
     this.validator = new ActionValidator();
     this.accessibilityCallback = accessibilityCallback;
     this.openAccessibilityPanelCallback = openAccessibilityPanelCallback;
     this.readContentCallback = readContentCallback;
+    this.stopReadingCallback = stopReadingCallback;
   }
 
   /**
@@ -170,6 +175,8 @@ export class ActionExecutionEngine {
         return this.executeSubmit(cdpSession, action as SubmitAction);
       case 'read_content':
         return this.executeReadContent(cdpSession, action as ReadContentAction);
+      case 'stop_reading':
+        return this.executeStopReading(action as StopReadingAction);
       case 'select':
       case 'wait':
       case 'extract':
@@ -257,6 +264,15 @@ export class ActionExecutionEngine {
     }
     
     return content;
+  }
+
+  private async executeStopReading(action: StopReadingAction): Promise<void> {
+    console.log('Executing STOP_READING');
+    
+    // Signal to renderer to stop TTS
+    if (this.stopReadingCallback) {
+      this.stopReadingCallback();
+    }
   }
 
   // ─── Placeholder implementations for other actions ───────────

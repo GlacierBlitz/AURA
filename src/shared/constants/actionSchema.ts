@@ -15,6 +15,7 @@ export const SUPPORTED_ACTION_TYPES: readonly ActionType[] = [
   'extract',
   'summarize',
   'read_content',
+  'stop_reading',
 ] as const;
 
 // ─── Confirmation Classification ────────────────────────────
@@ -29,6 +30,7 @@ export const NEVER_CONFIRM_ACTIONS: readonly ActionType[] = [
   'extract',
   'summarize',
   'read_content',
+  'stop_reading',
 ] as const;
 
 // ─── Sensitive Element Patterns ─────────────────────────────

@@ -128,6 +128,7 @@ Available action types:
 - wait: Wait for page to load (requires: duration in ms)
 - extract: Extract specific data (requires: selector, elementDescription)
 - read_content: Read page content aloud (optional: selector, contentType, index, elementDescription)
+- stop_reading: Stop the current text-to-speech reading (no additional fields)
 - accessibility: Adjust accessibility settings (requires: setting, value)
 - open_accessibility_panel: Open the accessibility settings panel (no additional fields)
 
@@ -164,6 +165,19 @@ Read content action details:
   - Read main content: {"action": "read_content", "contentType": "main-content", "description": "Read the main content of the page"}
   - Read element by selector: {"action": "read_content", "selector": "#article-body", "elementDescription": "article body", "description": "Read the article body"}
   - Read all links: {"action": "read_content", "contentType": "links", "description": "Read all links on the page"}
+
+Stop reading action details:
+- Use when the user wants to stop/cancel the current text-to-speech reading
+- No additional fields required, just the action type and description
+- Parse natural language stop commands:
+  - "stop reading" → stop_reading action
+  - "stop" (when reading is happening) → stop_reading action
+  - "cancel reading" → stop_reading action
+  - "be quiet" → stop_reading action
+  - "shut up" → stop_reading action
+  - "silence" → stop_reading action
+- Examples:
+  - Stop reading: {"action": "stop_reading", "description": "Stop the current text-to-speech reading"}
 
 Field requirements:
 - All actions require a "description" field explaining what this step does

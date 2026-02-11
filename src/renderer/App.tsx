@@ -41,6 +41,22 @@ export function App() {
     };
   }, [tts]);
 
+  // Listen for stop reading events from main process
+  useEffect(() => {
+    if (!window.electronAPI?.onStopReading) {
+      return;
+    }
+
+    const unsubscribe = window.electronAPI.onStopReading(() => {
+      console.log('Received stop reading request');
+      tts.stop();
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [tts]);
+
   // Load and apply saved accessibility settings on startup
   useEffect(() => {
     const saved = localStorage.getItem('accessibility-settings');

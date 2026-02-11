@@ -46,6 +46,7 @@ export interface ElectronAPI {
   onPipelineNavigation: (callback: (payload: PipelineNavigationPayload) => void) => () => void;
   onOpenAccessibilityPanel: (callback: (payload: UIOpenAccessibilityPayload) => void) => () => void;
   onReadContent: (callback: (payload: UIReadContentPayload) => void) => () => void;
+  onStopReading: (callback: () => void) => () => void;
 
   // Confirmation dialog
   onConfirmRequest: (callback: (payload: ConfirmationRequestPayload) => void) => () => void;
@@ -175,6 +176,16 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.UI_READ_CONTENT, listener);
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.UI_READ_CONTENT, listener);
+    };
+  },
+
+  onStopReading: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent) => {
+      callback();
+    };
+    ipcRenderer.on(IPC_CHANNELS.UI_STOP_READING, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.UI_STOP_READING, listener);
     };
   },
 

@@ -55,7 +55,8 @@ export type ActionType =
   | 'summarize'
   | 'accessibility'
   | 'open_accessibility_panel'
-  | 'read_content';
+  | 'read_content'
+  | 'stop_reading';
 
 export interface BaseAction {
   action: ActionType;
@@ -143,6 +144,10 @@ export interface ReadContentAction extends BaseAction {
   elementDescription?: string;
 }
 
+export interface StopReadingAction extends BaseAction {
+  action: 'stop_reading';
+}
+
 export type ActionDescriptor =
   | NavigateAction
   | ClickAction
@@ -157,7 +162,8 @@ export type ActionDescriptor =
   | SummarizeAction
   | AccessibilityAction
   | OpenAccessibilityPanelAction
-  | ReadContentAction;
+  | ReadContentAction
+  | StopReadingAction;
 
 // ─── Extractable Attributes ─────────────────────────────────
 

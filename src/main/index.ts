@@ -46,6 +46,11 @@ const intentPipeline = new IntentPipeline(
     if (!mainWindowRef) return;
     const payload: UIReadContentPayload = { content };
     sendToRenderer(mainWindowRef, IPC_CHANNELS.UI_READ_CONTENT, payload);
+  },
+  // Stop reading callback - sends signal to renderer to stop TTS
+  () => {
+    if (!mainWindowRef) return;
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.UI_STOP_READING, {});
   }
 );
 

@@ -6,7 +6,7 @@ import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { PageStateExtractor } from './pageStateExtractor';
 import { ContentSanitizer } from './contentSanitizer';
 import { LLMOrchestrator } from '../llm/llmOrchestrator';
-import { ActionExecutionEngine, AccessibilityUpdateCallback, OpenAccessibilityPanelCallback, ReadContentCallback } from '../execution/actionExecutionEngine';
+import { ActionExecutionEngine, AccessibilityUpdateCallback, OpenAccessibilityPanelCallback, ReadContentCallback, StopReadingCallback } from '../execution/actionExecutionEngine';
 import { ContextManager } from './contextManager';
 
 /**
@@ -47,12 +47,13 @@ export class IntentPipeline {
     accessibilityCallback?: AccessibilityUpdateCallback,
     openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback,
     readContentCallback?: ReadContentCallback,
+    stopReadingCallback?: StopReadingCallback,
     browserWindow?: Electron.BrowserWindow
   ) {
     this.extractor = new PageStateExtractor();
     this.sanitizer = new ContentSanitizer();
     this.orchestrator = orchestrator;
-    this.actionEngine = new ActionExecutionEngine(accessibilityCallback, openAccessibilityPanelCallback, readContentCallback);
+    this.actionEngine = new ActionExecutionEngine(accessibilityCallback, openAccessibilityPanelCallback, readContentCallback, stopReadingCallback);
     this.contextManager = new ContextManager();
     this.browserWindow = browserWindow;
     this.summaryCacheDir = path.join(app.getPath('userData'), 'summary-cache');

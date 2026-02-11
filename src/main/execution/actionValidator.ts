@@ -54,7 +54,7 @@ export class ActionValidator {
     const validTypes = [
       'navigate', 'click', 'type', 'select', 'submit',
       'scroll', 'back', 'forward', 'wait', 'extract', 'summarize', 'accessibility',
-      'open_accessibility_panel', 'read_content'
+      'open_accessibility_panel', 'read_content', 'stop_reading'
     ];
     if (!validTypes.includes(action.action)) {
       errors.push(`Invalid action type: ${action.action}`);

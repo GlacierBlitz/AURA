@@ -27,6 +27,7 @@ export const IPC_CHANNELS = {
   PIPELINE_NAVIGATION: 'pipeline:navigation',
   UI_OPEN_ACCESSIBILITY: 'ui:open-accessibility',
   UI_READ_CONTENT: 'ui:read-content',
+  UI_STOP_READING: 'ui:stop-reading',
 
   // Confirmation (bidirectional)
   CONFIRM_REQUEST: 'confirm:request',
