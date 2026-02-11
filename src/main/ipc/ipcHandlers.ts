@@ -110,9 +110,21 @@ export function registerIPCHandlers(
 
   // User updates accessibility settings
   ipcMain.on(IPC_CHANNELS.USER_UPDATE_ACCESSIBILITY, (event, payload: UpdateAccessibilityPayload) => {
-    console.log('Update accessibility settings:', payload);
+    console.log('IPC: Received accessibility settings update:', JSON.stringify(payload, null, 2));
     if (electronShell && electronShell.updateAccessibilitySettings) {
-      electronShell.updateAccessibilitySettings(payload);
+      console.log('IPC: Calling electronShell.updateAccessibilitySettings');
+      try {
+        electronShell.updateAccessibilitySettings(payload);
+        console.log('IPC: Successfully called updateAccessibilitySettings');
+      } catch (error) {
+        console.error('IPC: Error calling updateAccessibilitySettings:', error);
+      }
+    } else {
+      console.error('IPC: electronShell or updateAccessibilitySettings not available');
+      console.error('IPC: electronShell exists:', !!electronShell);
+      if (electronShell) {
+        console.error('IPC: updateAccessibilitySettings exists:', !!electronShell.updateAccessibilitySettings);
+      }
     }
   });
 

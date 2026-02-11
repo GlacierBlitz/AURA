@@ -308,15 +308,28 @@ export class ElectronShell {
     // Store settings for re-injection on navigation
     this.currentAccessibilitySettings = settings;
     console.log('Stored accessibility settings:', settings);
+    console.log('WebView state - isLoading:', this.webView.webContents.isLoading());
+    console.log('WebView state - URL:', this.webView.webContents.getURL());
+    console.log('WebView state - initialPageLoadComplete:', this.initialPageLoadComplete);
     
-    // Only reload if initial page load is complete and we have a real page loaded
+    // Apply settings immediately to current page - check if webContents has a valid page
     const currentUrl = this.webView.webContents.getURL();
-    if (this.initialPageLoadComplete && currentUrl && currentUrl !== 'about:blank' && !currentUrl.startsWith('devtools://')) {
-      console.log('Reloading page to apply new accessibility settings');
-      this.webView.webContents.reload();
+    const hasValidUrl = currentUrl && 
+                       currentUrl !== 'about:blank' && 
+                       !currentUrl.startsWith('devtools://') &&
+                       !currentUrl.startsWith('chrome-extension://');
+    
+    if (hasValidUrl && !this.webView.webContents.isLoading()) {
+      console.log('Applying accessibility settings to current page without reload');
+      this.applyCurrentAccessibilitySettings().catch(error => {
+        console.error('Failed to apply accessibility settings immediately:', error);
+        console.error('Error details:', error.stack);
+      });
     } else {
-      // Initial load not complete or no page loaded yet, just apply settings for next navigation
-      console.log('Initial load not complete or no page loaded yet, settings will apply on next navigation');
+      // Page not loaded or loading, settings will apply when DOM is ready
+      console.log('Page not ready for immediate settings application, will apply on DOM ready');
+      console.log('  hasValidUrl:', hasValidUrl);
+      console.log('  isLoading:', this.webView.webContents.isLoading());
     }
   }
 
@@ -333,6 +346,18 @@ export class ElectronShell {
       const settings = this.currentAccessibilitySettings;
       console.log('Applying accessibility CSS to page:', settings);
       
+      // Wait for webContents to be ready if it's still loading
+      if (this.webView.webContents.isLoading()) {
+        console.log('WebContents still loading, waiting for completion...');
+        await new Promise((resolve) => {
+          const onceLoaded = () => {
+            this.webView?.webContents.off('did-finish-load', onceLoaded);
+            resolve(void 0);
+          };
+          this.webView?.webContents.once('did-finish-load', onceLoaded);
+        });
+      }
+
       // Always remove previous CSS if we have a key
       if (this.accessibilityCssKey) {
         try {
@@ -357,6 +382,7 @@ export class ElectronShell {
         // Insert CSS into the page with user origin for high priority
         this.accessibilityCssKey = await this.webView.webContents.insertCSS(css, { cssOrigin: 'user' });
         console.log('Accessibility CSS applied successfully with key:', this.accessibilityCssKey);
+        console.log('Applied CSS length:', css.length, 'characters');
       } else {
         console.log('No accessibility CSS to apply');
       }

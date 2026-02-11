@@ -34,19 +34,25 @@ export function AccessibilityPanel({ onClose }: AccessibilityPanelProps) {
 
   const applySettings = useCallback((newSettings: AccessibilitySettings) => {
     try {
-      console.log('Applying settings:', newSettings);
+      console.log('AccessibilityPanel: Applying settings:', newSettings);
       // Save to localStorage
       localStorage.setItem('accessibility-settings', JSON.stringify(newSettings));
+      console.log('AccessibilityPanel: Saved to localStorage');
       
       // Send to main process to apply to BrowserView
       if (window.electronAPI && window.electronAPI.updateAccessibility) {
-        console.log('Sending to electron API');
+        console.log('AccessibilityPanel: Calling electronAPI.updateAccessibility');
         window.electronAPI.updateAccessibility(newSettings);
+        console.log('AccessibilityPanel: Successfully called electronAPI.updateAccessibility');
       } else {
-        console.warn('electronAPI or updateAccessibility not available');
+        console.error('AccessibilityPanel: electronAPI or updateAccessibility not available');
+        console.error('AccessibilityPanel: electronAPI exists:', !!window.electronAPI);
+        if (window.electronAPI) {
+          console.error('AccessibilityPanel: updateAccessibility exists:', !!window.electronAPI.updateAccessibility);
+        }
       }
     } catch (error) {
-      console.error('Error applying accessibility settings:', error);
+      console.error('AccessibilityPanel: Error applying accessibility settings:', error);
     }
   }, []);
 
