@@ -882,3 +882,127 @@ export async function extractFormValues(
   
   throw new Error('Not implemented');
 }
+
+/**
+ * Extract page content for reading aloud
+ */
+export async function extractContent(
+  cdpSession: Protocol.ProtocolMapping.API,
+  selector?: string,
+  contentType?: 'paragraph' | 'heading' | 'all-text' | 'main-content' | 'links' | 'list-items',
+  index?: number
+): Promise<string> {
+  try {
+    const result = await cdpSession.sendCommand('Runtime.evaluate', {
+      expression: `
+        (function() {
+          // Helper: Clean text (remove extra whitespace, normalize)
+          function cleanText(text) {
+            return text.trim().replace(/\\s+/g, ' ');
+          }
+          
+          // Helper: Check if element is visible
+          function isVisible(el) {
+            if (!el) return false;
+            const rect = el.getBoundingClientRect();
+            const style = window.getComputedStyle(el);
+            return rect.width > 0 && rect.height > 0 && 
+                   style.visibility !== 'hidden' && 
+                   style.display !== 'none' &&
+                   parseFloat(style.opacity) > 0;
+          }
+          
+          // If a specific selector is provided, use that
+          const selector = ${JSON.stringify(selector)};
+          if (selector) {
+            const element = document.querySelector(selector);
+            if (!element) {
+              return 'Could not find the specified element.';
+            }
+            if (!isVisible(element)) {
+              return 'The specified element is not visible.';
+            }
+            return cleanText(element.innerText || element.textContent || '');
+          }
+          
+          // Otherwise, use contentType
+          const contentType = ${JSON.stringify(contentType)};
+          const idx = ${JSON.stringify(index)} || 1;
+          
+          if (contentType === 'paragraph') {
+            const paragraphs = Array.from(document.querySelectorAll('p'))
+              .filter(isVisible)
+              .filter(p => cleanText(p.innerText).length > 20); // Meaningful paragraphs only
+            if (idx > paragraphs.length) {
+              return \`There are only \${paragraphs.length} paragraph(s) on this page.\`;
+            }
+            return cleanText(paragraphs[idx - 1].innerText);
+          }
+          
+          if (contentType === 'heading') {
+            const headings = Array.from(document.querySelectorAll('h1, h2, h3, h4, h5, h6'))
+              .filter(isVisible);
+            if (idx > headings.length) {
+              return \`There are only \${headings.length} heading(s) on this page.\`;
+            }
+            return cleanText(headings[idx - 1].innerText);
+          }
+          
+          if (contentType === 'links') {
+            const links = Array.from(document.querySelectorAll('a[href]'))
+              .filter(isVisible)
+              .filter(a => cleanText(a.innerText).length > 0);
+            if (links.length === 0) {
+              return 'There are no visible links on this page.';
+            }
+            return 'Links on this page: ' + links.map(a => cleanText(a.innerText)).join(', ');
+          }
+          
+          if (contentType === 'list-items') {
+            const items = Array.from(document.querySelectorAll('li'))
+              .filter(isVisible)
+              .filter(li => cleanText(li.innerText).length > 0);
+            if (items.length === 0) {
+              return 'There are no visible list items on this page.';
+            }
+            return 'List items: ' + items.map((li, i) => \`\${i + 1}. \${cleanText(li.innerText)}\`).join('. ');
+          }
+          
+          if (contentType === 'main-content') {
+            // Try to find main content area
+            const mainSelectors = ['main', 'article', '[role="main"]', '#content', '#main-content', '.main-content'];
+            for (const sel of mainSelectors) {
+              const main = document.querySelector(sel);
+              if (main && isVisible(main)) {
+                return cleanText(main.innerText);
+              }
+            }
+            // Fallback: get body text but exclude nav, header, footer
+            const excludeSelectors = 'nav, header, footer, aside, .nav, .header, .footer, .sidebar';
+            const body = document.body.cloneNode(true);
+            body.querySelectorAll(excludeSelectors).forEach(el => el.remove());
+            return cleanText(body.innerText);
+          }
+          
+          if (contentType === 'all-text') {
+            return cleanText(document.body.innerText);
+          }
+          
+          // Default: fallback to main content
+          return cleanText(document.body.innerText);
+        })()
+      `,
+      returnByValue: true,
+    });
+
+    if (result.exceptionDetails) {
+      console.error('Exception while extracting content:', result.exceptionDetails);
+      return 'Sorry, I encountered an error while trying to read the page content.';
+    }
+
+    return result.result.value as string || 'No content found.';
+  } catch (error) {
+    console.error('Error extracting content:', error);
+    return 'Sorry, I encountered an error while trying to read the page content.';
+  }
+}

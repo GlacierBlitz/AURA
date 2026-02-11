@@ -6,6 +6,7 @@ import { SettingsPanel } from './components/SettingsPanel';
 import { AccessibilityPanel } from './components/AccessibilityPanel';
 import { useIPC } from './hooks/useIPC';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
+import { useTTS } from './hooks/useTTS';
 import { DEFAULT_ACCESSIBILITY_SETTINGS } from '@shared/types/accessibility';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import './styles/global.css';
@@ -20,6 +21,25 @@ export function App() {
 
   // Initialize speech recognition for global keyboard controls
   const speechRecognition = useSpeechRecognition();
+
+  // Initialize TTS for reading page content
+  const tts = useTTS();
+
+  // Listen for read content events from main process
+  useEffect(() => {
+    if (!window.electronAPI?.onReadContent) {
+      return;
+    }
+
+    const unsubscribe = window.electronAPI.onReadContent((payload) => {
+      console.log('Received read content request:', payload.content);
+      tts.speak(payload.content);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [tts]);
 
   // Load and apply saved accessibility settings on startup
   useEffect(() => {

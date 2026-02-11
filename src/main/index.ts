@@ -1,6 +1,6 @@
 import { app, BrowserWindow, session } from 'electron';
 import { ElectronShell } from './shell/electronShell';
-import { registerIPCHandlers, sendToRenderer, setBrowserWindowForIPC } from './ipc/ipcHandlers';
+import { registerIPCHandlers, sendToRenderer } from './ipc/ipcHandlers';
 import { IntentPipeline } from './pipeline/intentPipeline';
 import { LLMOrchestrator } from './llm/llmOrchestrator';
 import { OpenAIAdapter } from './llm/providers/openaiAdapter';
@@ -14,6 +14,7 @@ import type {
   PipelineMessagePayload,
   PipelineNavigationPayload,
   UIOpenAccessibilityPayload,
+  UIReadContentPayload,
   ChatMessage,
 } from '@shared/types';
 import type { ActionPlanResponse, ClarificationResponse } from '@shared/types';
@@ -34,10 +35,17 @@ const intentPipeline = new IntentPipeline(
   (settings) => {
     electronShell.updateAccessibilitySettings(settings as any);
   },
+  // Open accessibility panel callback
   () => {
     if (!mainWindowRef) return;
     const payload: UIOpenAccessibilityPayload = { source: 'voice' };
     sendToRenderer(mainWindowRef, IPC_CHANNELS.UI_OPEN_ACCESSIBILITY, payload);
+  },
+  // Read content callback - sends content to renderer for TTS
+  (content: string) => {
+    if (!mainWindowRef) return;
+    const payload: UIReadContentPayload = { content };
+    sendToRenderer(mainWindowRef, IPC_CHANNELS.UI_READ_CONTENT, payload);
   }
 );
 
@@ -149,9 +157,6 @@ async function createWindow() {
 
     // Set browser window in pipeline for read commands
     intentPipeline.setBrowserWindow(mainWindow);
-    
-    // Set browser window in IPC handlers for read commands
-    setBrowserWindowForIPC(mainWindow);
 
     // Clear reference when window is closed
     mainWindow.on('closed', () => {

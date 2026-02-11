@@ -12,86 +12,26 @@ import type {
   TranscribeAudioPayload,
   TranscribeAudioResponse,
   SetSuggestionsVisiblePayload,
-  PageContentPayload,
-  ReadPagePayload,
 } from '@shared/types';
-import { PageTextExtractor, type ContentType } from '../pipeline/pageTextExtractor';
 
 let electronShell: any = null;
 let configureLLMCallback: ((apiKey: string) => void) | null = null;
 let whisperService: any = null;
 let intentPipeline: any = null;
-let browserWindow: Electron.BrowserWindow | null = null;
 
 /**
- * Handle a read page request with specified content type
+ * Register all IPC channel handlers
  */
-async function handleReadPageRequest(
-  contentType: string,
-  window: Electron.BrowserWindow | null
-): Promise<void> {
-  if (!electronShell || !window) {
-    console.error('Electron shell or browser window not available for read page');
-    return;
-  }
-
-  try {
-    const cdpSession = electronShell.getCDPSession();
-    if (!cdpSession) {
-      console.error('CDP session not available for read page');
-      return;
-    }
-
-    const textExtractor = new PageTextExtractor();
-    const [text, metadata] = await Promise.all([
-      textExtractor.extractTargetedContent(cdpSession, contentType as ContentType),
-      textExtractor.extractPageMetadata(cdpSession),
-    ]);
-
-    const payload: PageContentPayload = {
-      text,
-      title: metadata.title,
-      url: metadata.url,
-    };
-
-    window.webContents.send(IPC_CHANNELS.PAGE_CONTENT_READY, payload);
-  } catch (error: any) {
-    console.error('Error reading page:', error);
-    const errorPayload: PageContentPayload = {
-      text: 'Sorry, I could not read the page content. ' + (error?.message || ''),
-      title: 'Error',
-      url: '',
-    };
-    window.webContents.send(IPC_CHANNELS.PAGE_CONTENT_READY, errorPayload);
-  }
-}
-
-
 export function registerIPCHandlers(
   shell?: any,
   configCallback?: (apiKey: string) => void,
   whisper?: any,
-  pipeline?: any,
-  window?: Electron.BrowserWindow
+  pipeline?: any
 ): void {
   electronShell = shell;
   configureLLMCallback = configCallback;
   whisperService = whisper;
   intentPipeline = pipeline;
-  browserWindow = window || null;
-
-  // Set browser window in pipeline for read commands
-  if (intentPipeline && intentPipeline.setBrowserWindow && browserWindow) {
-    intentPipeline.setBrowserWindow(browserWindow);
-  }
-
-  // Set up read command handler in pipeline
-  if (intentPipeline && intentPipeline.onReadCommand) {
-    intentPipeline.onReadCommand(async (contentType: string) => {
-      console.log('Pipeline requesting read for content type:', contentType);
-      await handleReadPageRequest(contentType, browserWindow);
-    });
-  }
 
   // User navigates to URL
   ipcMain.on(IPC_CHANNELS.USER_NAVIGATE, (event, payload: NavigatePayload) => {
@@ -264,62 +204,7 @@ export function registerIPCHandlers(
     }
   });
 
-  // User requests to read page content
-  ipcMain.handle(IPC_CHANNELS.USER_READ_PAGE, async (event, payload?: ReadPagePayload) => {
-    console.log('Received request to read page', payload);
-
-    if (!electronShell) {
-      console.error('Electron shell not available for reading page');
-      return;
-    }
-
-    try {
-      // Get CDP session from electron shell
-      const cdpSession = electronShell.getCDPSession();
-      if (!cdpSession) {
-        console.error('CDP session not available for reading page');
-        return;
-      }
-
-      // Determine content type to extract
-      const contentType: ContentType = payload?.contentType || 'full';
-
-      // Extract content and metadata
-      const textExtractor = new PageTextExtractor();
-      const [text, metadata] = await Promise.all([
-        textExtractor.extractTargetedContent(cdpSession, contentType),
-        textExtractor.extractPageMetadata(cdpSession),
-      ]);
-
-      // Send the page content back to renderer
-      const pagePayload: PageContentPayload = {
-        text,
-        title: metadata.title,
-        url: metadata.url,
-      };
-
-      // Send via sender to get correct window
-      event.sender.send(IPC_CHANNELS.PAGE_CONTENT_READY, pagePayload);
-    } catch (error: any) {
-      console.error('Error reading page:', error);
-      const errorPayload: PageContentPayload = {
-        text: 'Sorry, I could not read the page content. ' + (error?.message || ''),
-        title: 'Error',
-        url: '',
-      };
-      event.sender.send(IPC_CHANNELS.PAGE_CONTENT_READY, errorPayload);
-    }
-  });
-
   console.log('IPC handlers registered successfully');
-}
-
-/**
- * Set the browser window for IPC handlers
- * Called after the main window is created
- */
-export function setBrowserWindowForIPC(window: Electron.BrowserWindow): void {
-  browserWindow = window;
 }
 
 /**

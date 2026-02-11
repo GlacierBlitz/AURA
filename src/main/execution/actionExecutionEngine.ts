@@ -19,6 +19,7 @@ import type {
   AccessibilityAction,
   SubmitAction,
   OpenAccessibilityPanelAction,
+  ReadContentAction,
 } from '@shared/types';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { ActionValidator, ValidationResult } from './actionValidator';
@@ -30,6 +31,7 @@ export interface ExecutionResult {
   error?: string;
   executionTimeMs: number;
   retriesUsed: number;
+  extractedContent?: string;
 }
 
 export interface ExecutionConfig {
@@ -40,6 +42,7 @@ export interface ExecutionConfig {
 
 export type AccessibilityUpdateCallback = (settings: Partial<AccessibilitySettings>) => void;
 export type OpenAccessibilityPanelCallback = () => void;
+export type ReadContentCallback = (content: string) => void;
 
 const DEFAULT_CONFIG: ExecutionConfig = {
   maxRetries: 3,
@@ -51,14 +54,17 @@ export class ActionExecutionEngine {
   private validator: ActionValidator;
   private accessibilityCallback?: AccessibilityUpdateCallback;
   private openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback;
+  private readContentCallback?: ReadContentCallback;
 
   constructor(
     accessibilityCallback?: AccessibilityUpdateCallback,
-    openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback
+    openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback,
+    readContentCallback?: ReadContentCallback
   ) {
     this.validator = new ActionValidator();
     this.accessibilityCallback = accessibilityCallback;
     this.openAccessibilityPanelCallback = openAccessibilityPanelCallback;
+    this.readContentCallback = readContentCallback;
   }
 
   /**
@@ -90,7 +96,7 @@ export class ActionExecutionEngine {
       // Execute with retries
       for (let attempt = 0; attempt <= finalConfig.maxRetries; attempt++) {
         try {
-          await this.executeWithTimeout(cdpSession, action, finalConfig.timeoutMs);
+          const extractedContent = await this.executeWithTimeout(cdpSession, action, finalConfig.timeoutMs);
           
           // Wait for page to stabilize after action
           if (finalConfig.waitForStabilization) {
@@ -101,7 +107,8 @@ export class ActionExecutionEngine {
             success: true,
             action,
             executionTimeMs: Date.now() - startTime,
-            retriesUsed: attempt
+            retriesUsed: attempt,
+            extractedContent,
           };
         } catch (error) {
           retriesUsed = attempt + 1;
@@ -132,7 +139,7 @@ export class ActionExecutionEngine {
     cdpSession: Protocol.ProtocolMapping.API,
     action: ActionDescriptor,
     timeoutMs: number
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     return Promise.race([
       this.executeActionByType(cdpSession, action),
       this.timeout(timeoutMs)
@@ -145,7 +152,7 @@ export class ActionExecutionEngine {
   private async executeActionByType(
     cdpSession: Protocol.ProtocolMapping.API,
     action: ActionDescriptor
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     switch (action.action) {
       case 'click':
         return this.executeClick(cdpSession, action as ClickAction);
@@ -161,6 +168,8 @@ export class ActionExecutionEngine {
         return this.executeOpenAccessibilityPanel(action as OpenAccessibilityPanelAction);
       case 'submit':
         return this.executeSubmit(cdpSession, action as SubmitAction);
+      case 'read_content':
+        return this.executeReadContent(cdpSession, action as ReadContentAction);
       case 'select':
       case 'wait':
       case 'extract':
@@ -229,6 +238,25 @@ export class ActionExecutionEngine {
 
     this.openAccessibilityPanelCallback();
     await this.delay(50);
+  }
+
+  private async executeReadContent(cdpSession: Protocol.ProtocolMapping.API, action: ReadContentAction): Promise<string> {
+    console.log(`Executing READ_CONTENT: type=${action.contentType}, index=${action.index}, selector=${action.selector}`);
+    
+    // Extract the content using CDP
+    const content = await cdp.extractContent(
+      cdpSession,
+      action.selector,
+      action.contentType,
+      action.index
+    );
+    
+    // Send content to renderer for TTS playback
+    if (this.readContentCallback) {
+      this.readContentCallback(content);
+    }
+    
+    return content;
   }
 
   // ─── Placeholder implementations for other actions ───────────

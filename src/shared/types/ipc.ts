@@ -18,7 +18,6 @@ export const IPC_CHANNELS = {
   USER_SET_MODAL_OPEN: 'user:set-modal-open',
   USER_TRANSCRIBE_AUDIO: 'user:transcribe-audio',
   USER_SET_SUGGESTIONS_VISIBLE: 'user:set-suggestions-visible',
-  USER_READ_PAGE: 'user:read-page',
 
   // Main to Renderer
   PIPELINE_SUMMARY: 'pipeline:summary',
@@ -27,7 +26,7 @@ export const IPC_CHANNELS = {
   PIPELINE_ERROR: 'pipeline:error',
   PIPELINE_NAVIGATION: 'pipeline:navigation',
   UI_OPEN_ACCESSIBILITY: 'ui:open-accessibility',
-  PAGE_CONTENT_READY: 'page:content-ready',
+  UI_READ_CONTENT: 'ui:read-content',
 
   // Confirmation (bidirectional)
   CONFIRM_REQUEST: 'confirm:request',
@@ -75,6 +74,10 @@ export interface PipelineNavigationPayload {
 
 export interface UIOpenAccessibilityPayload {
   source?: 'voice' | 'system';
+}
+
+export interface UIReadContentPayload {
+  content: string;
 }
 
 export type PipelineStatus = 'idle' | 'extracting' | 'processing' | 'executing' | 'error';
@@ -156,14 +159,4 @@ export interface TranscribeAudioResponse {
 
 export interface SetSuggestionsVisiblePayload {
   visible: boolean;
-}
-
-export interface PageContentPayload {
-  text: string;
-  title: string;
-  url: string;
-}
-
-export interface ReadPagePayload {
-  contentType?: 'full' | 'main' | 'heading' | 'paragraph' | 'first-paragraph' | 'all-paragraphs' | 'headings' | 'list' | 'images' | 'links';
 }

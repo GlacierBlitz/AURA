@@ -50,11 +50,11 @@ export class ActionValidator {
   private validateSchema(action: ActionDescriptor): string[] {
     const errors: string[] = [];
 
-    // V-001: Action type must be one of 12 supported types
+    // V-001: Action type must be one of the supported types
     const validTypes = [
       'navigate', 'click', 'type', 'select', 'submit',
       'scroll', 'back', 'forward', 'wait', 'extract', 'summarize', 'accessibility',
-      'open_accessibility_panel'
+      'open_accessibility_panel', 'read_content'
     ];
     if (!validTypes.includes(action.action)) {
       errors.push(`Invalid action type: ${action.action}`);

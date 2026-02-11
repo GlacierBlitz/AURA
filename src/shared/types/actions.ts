@@ -54,7 +54,8 @@ export type ActionType =
   | 'extract'
   | 'summarize'
   | 'accessibility'
-  | 'open_accessibility_panel';
+  | 'open_accessibility_panel'
+  | 'read_content';
 
 export interface BaseAction {
   action: ActionType;
@@ -134,6 +135,14 @@ export interface OpenAccessibilityPanelAction extends BaseAction {
   action: 'open_accessibility_panel';
 }
 
+export interface ReadContentAction extends BaseAction {
+  action: 'read_content';
+  selector?: string;
+  contentType?: 'paragraph' | 'heading' | 'all-text' | 'main-content' | 'links' | 'list-items';
+  index?: number;
+  elementDescription?: string;
+}
+
 export type ActionDescriptor =
   | NavigateAction
   | ClickAction
@@ -147,7 +156,8 @@ export type ActionDescriptor =
   | ExtractAction
   | SummarizeAction
   | AccessibilityAction
-  | OpenAccessibilityPanelAction;
+  | OpenAccessibilityPanelAction
+  | ReadContentAction;
 
 // ─── Extractable Attributes ─────────────────────────────────
 

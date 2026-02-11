@@ -6,9 +6,8 @@ import type { AccessibilitySettings } from '@shared/types/accessibility';
 import { PageStateExtractor } from './pageStateExtractor';
 import { ContentSanitizer } from './contentSanitizer';
 import { LLMOrchestrator } from '../llm/llmOrchestrator';
-import { ActionExecutionEngine, AccessibilityUpdateCallback, OpenAccessibilityPanelCallback } from '../execution/actionExecutionEngine';
+import { ActionExecutionEngine, AccessibilityUpdateCallback, OpenAccessibilityPanelCallback, ReadContentCallback } from '../execution/actionExecutionEngine';
 import { ContextManager } from './contextManager';
-import { detectReadCommand } from './readCommandDetector';
 
 /**
  * IntentPipeline orchestrates the full page load and summarization flow
@@ -26,7 +25,6 @@ export class IntentPipeline {
   private onActionPlanCallback?: (plan: ActionPlanResponse) => void;
   private onClarificationCallback?: (clarification: ClarificationResponse) => void;
   private onActionResultCallback?: (result: ActionResult) => void;
-  private onReadCommandCallback?: (contentType: string) => Promise<void>;
   private browserWindow?: Electron.BrowserWindow;
 
   // Cache the current page state to avoid duplicate extraction
@@ -48,12 +46,13 @@ export class IntentPipeline {
     orchestrator: LLMOrchestrator,
     accessibilityCallback?: AccessibilityUpdateCallback,
     openAccessibilityPanelCallback?: OpenAccessibilityPanelCallback,
+    readContentCallback?: ReadContentCallback,
     browserWindow?: Electron.BrowserWindow
   ) {
     this.extractor = new PageStateExtractor();
     this.sanitizer = new ContentSanitizer();
     this.orchestrator = orchestrator;
-    this.actionEngine = new ActionExecutionEngine(accessibilityCallback, openAccessibilityPanelCallback);
+    this.actionEngine = new ActionExecutionEngine(accessibilityCallback, openAccessibilityPanelCallback, readContentCallback);
     this.contextManager = new ContextManager();
     this.browserWindow = browserWindow;
     this.summaryCacheDir = path.join(app.getPath('userData'), 'summary-cache');
@@ -107,13 +106,6 @@ export class IntentPipeline {
    */
   onActionResult(callback: (result: ActionResult) => void): void {
     this.onActionResultCallback = callback;
-  }
-
-  /**
-   * Register callback for when a read command is detected
-   */
-  onReadCommand(callback: (contentType: string) => Promise<void>): void {
-    this.onReadCommandCallback = callback;
   }
 
   /**
@@ -231,25 +223,6 @@ export class IntentPipeline {
     conversationHistory: ConversationTurn[] = []
   ): Promise<void> {
     try {
-      // Check if this is a read command first
-      const readCommand = detectReadCommand(instruction);
-      if (readCommand.isReadCommand) {
-        console.log('Read command detected:', readCommand.contentType);
-        this.updateStatus('idle');
-        
-        if (this.onReadCommandCallback && this.browserWindow) {
-          try {
-            await this.onReadCommandCallback(readCommand.contentType || 'main');
-          } catch (error) {
-            console.error('Error handling read command:', error);
-            if (this.onErrorCallback) {
-              this.onErrorCallback(error as Error);
-            }
-          }
-        }
-        return;
-      }
-
       // Update status: extracting
       this.updateStatus('extracting');
 
