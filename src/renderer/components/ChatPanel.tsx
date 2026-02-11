@@ -19,12 +19,15 @@ export function ChatPanel() {
 
   // Auto-scroll to latest message
   const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Use setTimeout to ensure DOM has updated
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }, 100);
   }, []);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [messages, pipelineStatus, scrollToBottom]);
 
   // Submit instruction directly via electronAPI (don't call useIPC here - it's already in App.tsx)
   const submitInstruction = useCallback((text: string) => {
@@ -116,6 +119,7 @@ export function ChatPanel() {
             <span className="processing-text">Processing...</span>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       <form className="chat-input-form" onSubmit={handleSubmit}>
