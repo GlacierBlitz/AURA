@@ -309,42 +309,6 @@ export function AccessibilityPanel({ onClose }: AccessibilityPanelProps) {
               {isClearingCache ? 'Clearing Cache...' : 'Clear All Cache'}
             </button>
           </section>
-
-          {/* Cache Management */}
-          <section className="accessibility-section">
-            <h3>Cache Management</h3>
-            <p style={{ fontSize: '0.9em', opacity: 0.8, marginBottom: '12px' }}>
-              Clear cached page summaries and LLM responses to get fresh results or free up space.
-            </p>
-            <button
-              onClick={handleClearCache}
-              disabled={isClearingCache}
-              style={{
-                padding: '10px 16px',
-                backgroundColor: isClearingCache ? '#9ca3af' : '#dc2626',
-                color: 'white',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: isClearingCache ? 'not-allowed' : 'pointer',
-                fontSize: '14px',
-                fontWeight: '500',
-                width: '100%',
-                transition: 'background-color 0.2s'
-              }}
-              onMouseEnter={(e) => {
-                if (!isClearingCache) {
-                  e.currentTarget.style.backgroundColor = '#b91c1c';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isClearingCache) {
-                  e.currentTarget.style.backgroundColor = '#dc2626';
-                }
-              }}
-            >
-              {isClearingCache ? 'Clearing Cache...' : 'Clear All Cache'}
-            </button>
-          </section>
         </div>
       </div>
     </div>
