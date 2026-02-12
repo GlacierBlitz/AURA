@@ -27,6 +27,9 @@ export const IPC_CHANNELS = {
   FOCUS_READING_UPDATE_SETTINGS: 'focus-reading:update-settings',
   FOCUS_READING_STATUS: 'focus-reading:status',
 
+  // Cache Management
+  CACHE_CLEAR: 'cache:clear',
+
   // Main to Renderer
   PIPELINE_SUMMARY: 'pipeline:summary',
   PIPELINE_STATUS: 'pipeline:status',

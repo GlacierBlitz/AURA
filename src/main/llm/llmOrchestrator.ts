@@ -43,6 +43,16 @@ export class LLMOrchestrator {
   }
 
   /**
+   * Clear the LLM response cache
+   */
+  async clearCache(): Promise<void> {
+    if (this.cache) {
+      await this.cache.clear();
+      console.log('[LLMOrchestrator] Cache cleared');
+    }
+  }
+
+  /**
    * Generate a summary of the current page state
    */
   async generateSummary(

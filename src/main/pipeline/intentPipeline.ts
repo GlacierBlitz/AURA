@@ -418,6 +418,19 @@ export class IntentPipeline {
     }
   }
 
+  /**
+   * Clear all caches (summary cache and LLM cache)
+   */
+  async clearAllCaches(): Promise<void> {
+    // Clear summary cache
+    this.summaryCache.clear();
+    this.scheduleSummaryCacheSave();
+    console.log('[IntentPipeline] Summary cache cleared');
+
+    // Clear LLM cache
+    await this.orchestrator.clearCache();
+  }
+
   private scheduleSummaryCacheSave(): void {
     if (this.summaryCacheSaveTimer) {
       return;

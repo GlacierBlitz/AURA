@@ -210,8 +210,8 @@ export function ChatPanel({ speechRecognition }: ChatPanelProps) {
         {isSpeechSupported && (
           <div className="input-hint">
             💡 Tip: {voiceInputMode === 'push-to-talk' 
-              ? 'Hold <kbd>Space</kbd> for voice input'
-              : 'Press <kbd>Space</kbd> to toggle voice input'}
+              ? 'Hold Space for voice input'
+              : 'Press Space to toggle voice input'}
           </div>
         )}
         

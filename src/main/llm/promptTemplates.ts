@@ -37,14 +37,14 @@ Accessibility guidelines:
 /**
  * Template for page summarization requests
  */
-export const SUMMARY_TEMPLATE = `Analyze the provided web page and create a concise, accessible summary.
+export const SUMMARY_TEMPLATE = `Analyze the provided web page and create a descriptive, accessible summary.
 
 Your response must be valid JSON with this structure:
 {
   "type": "summary",
   "confidence": 0.85,
   "summary": {
-    "purpose": "A one-sentence description of what this page is for",
+    "purpose": "A detailed description of what this page is for and what content it provides",
     "sections": [
       "Key section 1",
       "Key section 2"
@@ -58,12 +58,14 @@ Your response must be valid JSON with this structure:
 }
 
 Guidelines:
-- Keep purpose to 1-2 sentences maximum
-- List 3-5 main sections/areas of the page
-- Identify 3-7 common actions users can take
+- Make purpose descriptive (2-4 sentences) explaining what the page offers and its main function
+- DO NOT include any URLs, links, or web addresses in your response
+- List 3-5 main sections/areas of the page (descriptive names, not just generic labels)
+- Identify 3-7 common actions users can take (be specific about what they can do)
 - Note any accessibility issues or helpful features
 - Focus on interactive elements and user-facing content
-- Ignore boilerplate content (headers, footers, ads, navigation)`;
+- Ignore boilerplate content (headers, footers, ads, navigation)
+- Be informative and help users understand the page's value and purpose`;
 
 /**
  * Template for intent-to-action translation

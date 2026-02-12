@@ -229,6 +229,21 @@
   background-color: var(--hover-background);
 }
 
+.button-warning {
+  background-color: #dc2626;
+  color: white;
+  border: none;
+}
+
+.button-warning:hover {
+  background-color: #b91c1c;
+}
+
+.button-warning:disabled {
+  background-color: #9ca3af;
+  cursor: not-allowed;
+}
+
 /* Animations */
 @keyframes fadeIn {
   from {

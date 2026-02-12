@@ -68,6 +68,9 @@ export interface ElectronAPI {
   exitFocusReading: () => Promise<void>;
   updateFocusReadingSettings: (payload: FocusReadingUpdateSettingsPayload) => Promise<void>;
   onFocusReadingStatus: (callback: (payload: FocusReadingStatusPayload) => void) => () => void;
+
+  // Cache Management
+  clearCache: () => Promise<void>;
 }
 
 // Expose protected methods to the renderer via contextBridge
@@ -271,6 +274,11 @@ const electronAPI: ElectronAPI = {
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.FOCUS_READING_STATUS, listener);
     };
+  },
+
+  // Cache Management
+  clearCache: (): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CACHE_CLEAR);
   },
 };
 

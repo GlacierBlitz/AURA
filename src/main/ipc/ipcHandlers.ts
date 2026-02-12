@@ -316,6 +316,16 @@ export function registerIPCHandlers(
     }
   });
 
+  // ─── Cache Management ────────────────────────────────────────────
+
+  // Clear all caches
+  ipcMain.handle(IPC_CHANNELS.CACHE_CLEAR, async () => {
+    console.log('Clearing all caches');
+    if (intentPipeline && intentPipeline.clearAllCaches) {
+      await intentPipeline.clearAllCaches();
+    }
+  });
+
   console.log('IPC handlers registered successfully');
 }
 
