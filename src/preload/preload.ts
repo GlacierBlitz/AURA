@@ -15,10 +15,14 @@ import type {
   PipelineNavigationPayload,
   UIOpenAccessibilityPayload,
   UIReadContentPayload,
+  SetVoiceModePayload,
   ConfirmationRequestPayload,
   ConfirmationResponsePayload,
   LogQueryPayload,
   LogResultsPayload,
+  FocusReadingTogglePayload,
+  FocusReadingUpdateSettingsPayload,
+  FocusReadingStatusPayload,
 } from '@shared/types';
 import { IPC_CHANNELS } from '@shared/types';
 
@@ -47,6 +51,7 @@ export interface ElectronAPI {
   onOpenAccessibilityPanel: (callback: (payload: UIOpenAccessibilityPayload) => void) => () => void;
   onReadContent: (callback: (payload: UIReadContentPayload) => void) => () => void;
   onStopReading: (callback: () => void) => () => void;
+  onSetVoiceMode: (callback: (payload: SetVoiceModePayload) => void) => () => void;
 
   // Confirmation dialog
   onConfirmRequest: (callback: (payload: ConfirmationRequestPayload) => void) => () => void;
@@ -55,6 +60,14 @@ export interface ElectronAPI {
   // Action log
   queryLog: (payload: LogQueryPayload) => void;
   onLogResults: (callback: (payload: LogResultsPayload) => void) => () => void;
+
+  // Focus Reading
+  toggleFocusReading: (payload: FocusReadingTogglePayload) => Promise<void>;
+  focusReadingNext: () => Promise<void>;
+  focusReadingPrev: () => Promise<void>;
+  exitFocusReading: () => Promise<void>;
+  updateFocusReadingSettings: (payload: FocusReadingUpdateSettingsPayload) => Promise<void>;
+  onFocusReadingStatus: (callback: (payload: FocusReadingStatusPayload) => void) => () => void;
 }
 
 // Expose protected methods to the renderer via contextBridge
@@ -189,6 +202,16 @@ const electronAPI: ElectronAPI = {
     };
   },
 
+  onSetVoiceMode: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: SetVoiceModePayload) => {
+      callback(payload);
+    };
+    ipcRenderer.on(IPC_CHANNELS.UI_SET_VOICE_MODE, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.UI_SET_VOICE_MODE, listener);
+    };
+  },
+
   // Confirmation
   onConfirmRequest: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: ConfirmationRequestPayload) => {
@@ -216,6 +239,37 @@ const electronAPI: ElectronAPI = {
     ipcRenderer.on(IPC_CHANNELS.LOG_RESULTS, listener);
     return () => {
       ipcRenderer.removeListener(IPC_CHANNELS.LOG_RESULTS, listener);
+    };
+  },
+
+  // Focus Reading
+  toggleFocusReading: (payload: FocusReadingTogglePayload): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FOCUS_READING_TOGGLE, payload);
+  },
+
+  focusReadingNext: (): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FOCUS_READING_NEXT);
+  },
+
+  focusReadingPrev: (): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FOCUS_READING_PREV);
+  },
+
+  exitFocusReading: (): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FOCUS_READING_EXIT);
+  },
+
+  updateFocusReadingSettings: (payload: FocusReadingUpdateSettingsPayload): Promise<void> => {
+    return ipcRenderer.invoke(IPC_CHANNELS.FOCUS_READING_UPDATE_SETTINGS, payload);
+  },
+
+  onFocusReadingStatus: (callback) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: FocusReadingStatusPayload) => {
+      callback(payload);
+    };
+    ipcRenderer.on(IPC_CHANNELS.FOCUS_READING_STATUS, listener);
+    return () => {
+      ipcRenderer.removeListener(IPC_CHANNELS.FOCUS_READING_STATUS, listener);
     };
   },
 };

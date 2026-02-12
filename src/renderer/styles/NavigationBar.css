@@ -126,6 +126,17 @@
   outline: 2px solid #0066cc;
   outline-offset: 2px;
 }
+
+.accessibility-nav-button.active {
+  background: #dbeafe;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+
+.accessibility-nav-button.active:hover {
+  background: #bfdbfe;
+}
+
 .accessibility-nav-button.reading {
   background: #e8f5e9;
   border-color: #4CAF50;

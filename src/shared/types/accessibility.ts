@@ -71,3 +71,25 @@ export const ACCESSIBILITY_PROFILES: Record<AccessibilityProfile, Partial<Access
   },
   'custom': {},
 };
+
+// ─── Focus Reading Types ────────────────────────────────────
+
+export interface FocusReadingSettings {
+  enabled: boolean;
+  dimOpacity: number;       // 0-1, how dim the unfocused content should be (default 0.15)
+  highlightStyle: FocusHighlightStyle;
+}
+
+export type FocusHighlightStyle = 'spotlight' | 'underline' | 'box';
+
+export const DEFAULT_FOCUS_READING_SETTINGS: FocusReadingSettings = {
+  enabled: false,
+  dimOpacity: 0.15,
+  highlightStyle: 'spotlight',
+};
+
+export interface FocusReadingStatusPayload {
+  active: boolean;
+  paragraphIndex: number;
+  totalParagraphs: number;
+}

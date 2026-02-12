@@ -7,6 +7,7 @@ import { AccessibilityPanel } from './components/AccessibilityPanel';
 import { useIPC } from './hooks/useIPC';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useTTS } from './hooks/useTTS';
+import { useAppStore } from './store/appStore';
 import { DEFAULT_ACCESSIBILITY_SETTINGS } from '@shared/types/accessibility';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
 import './styles/global.css';
@@ -15,9 +16,29 @@ export function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showChatPanel, setShowChatPanel] = useState(true);
   const [showAccessibility, setShowAccessibility] = useState(false);
+  const voiceInputMode = useAppStore((state) => state.voiceInputMode);
+  const focusReadingActive = useAppStore((state) => state.focusReadingActive);
+  const setFocusReadingActive = useAppStore((state) => state.setFocusReadingActive);
+  const focusReadingDimOpacity = useAppStore((state) => state.focusReadingDimOpacity);
+  const focusReadingHighlightStyle = useAppStore((state) => state.focusReadingHighlightStyle);
+  const setFocusReadingStatus = useAppStore((state) => state.setFocusReadingStatus);
 
   // Initialize IPC listeners
   useIPC();
+
+  // Listen for focus reading status updates
+  useEffect(() => {
+    if (!window.electronAPI?.onFocusReadingStatus) return;
+
+    const unsubscribe = window.electronAPI.onFocusReadingStatus((status) => {
+      setFocusReadingActive(status.active);
+      setFocusReadingStatus(status.paragraphIndex, status.totalParagraphs);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [setFocusReadingActive, setFocusReadingStatus]);
 
   // Initialize speech recognition for global keyboard controls
   const speechRecognition = useSpeechRecognition();
@@ -110,6 +131,27 @@ export function App() {
     setShowAccessibility(true);
   };
 
+  const handleToggleFocusReading = async () => {
+    const newState = !focusReadingActive;
+    console.log('Toggling focus reading:', newState);
+    try {
+      await window.electronAPI?.toggleFocusReading?.({
+        enabled: newState,
+        settings: {
+          enabled: newState,
+          dimOpacity: focusReadingDimOpacity,
+          highlightStyle: focusReadingHighlightStyle,
+        },
+      });
+      setFocusReadingActive(newState);
+      if (!newState) {
+        setFocusReadingStatus(0, 0);
+      }
+    } catch (error) {
+      console.error('Failed to toggle focus reading:', error);
+    }
+  };
+
   // Handle keyboard shortcuts for voice recording
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Only allow voice recording when chat panel is visible
@@ -119,15 +161,26 @@ export function App() {
     const target = e.target as HTMLElement;
     const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
     
-    // Spacebar: Push-to-talk (only when not in input fields)
+    // Spacebar: Voice input (only when not in input fields)
     if (e.code === 'Space' && !isInputField && !e.repeat) {
       e.preventDefault();
-      if (!speechRecognition.isListening) {
-        speechRecognition.startListening();
+      
+      if (voiceInputMode === 'push-to-talk') {
+        // Push-to-talk: Start on keydown
+        if (!speechRecognition.isListening) {
+          speechRecognition.startListening();
+        }
+      } else {
+        // Toggle mode: Toggle on keydown
+        if (speechRecognition.isListening) {
+          speechRecognition.stopListening();
+        } else {
+          speechRecognition.startListening();
+        }
       }
       return;
     }
-  }, [speechRecognition, showChatPanel]);
+  }, [speechRecognition, showChatPanel, voiceInputMode]);
 
   const handleKeyUp = useCallback((e: KeyboardEvent) => {
     // Only allow voice recording when chat panel is visible
@@ -137,15 +190,15 @@ export function App() {
     const target = e.target as HTMLElement;
     const isInputField = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
     
-    // Spacebar release: Stop push-to-talk (only when not in input fields)
-    if (e.code === 'Space' && !isInputField) {
+    // Spacebar release: Stop push-to-talk (only in push-to-talk mode)
+    if (e.code === 'Space' && !isInputField && voiceInputMode === 'push-to-talk') {
       e.preventDefault();
       if (speechRecognition.isListening) {
         speechRecognition.stopListening();
       }
       return;
     }
-  }, [speechRecognition, showChatPanel]);
+  }, [speechRecognition, showChatPanel, voiceInputMode]);
 
   // Add global keyboard event listeners for voice controls
   useEffect(() => {
@@ -165,6 +218,8 @@ export function App() {
         onToggleChat={toggleChatPanel} 
         showChat={showChatPanel}
         onOpenAccessibility={handleOpenAccessibility}
+        onToggleFocusReading={handleToggleFocusReading}
+        focusReadingActive={focusReadingActive}
       />
       
       <div className="app-main">

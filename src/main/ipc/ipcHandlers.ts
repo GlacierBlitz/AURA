@@ -12,12 +12,61 @@ import type {
   TranscribeAudioPayload,
   TranscribeAudioResponse,
   SetSuggestionsVisiblePayload,
+  SetVoiceModePayload,
+  FocusReadingTogglePayload,
+  FocusReadingUpdateSettingsPayload,
 } from '@shared/types';
 
 let electronShell: any = null;
 let configureLLMCallback: ((apiKey: string) => void) | null = null;
 let whisperService: any = null;
 let intentPipeline: any = null;
+
+/**
+ * Check if user instruction is a voice mode switch command
+ * Returns the mode to switch to, or null if not a mode switch command
+ */
+function checkVoiceModeSwitchCommand(instruction: string): 'push-to-talk' | 'toggle' | null {
+  const normalized = instruction.toLowerCase().trim();
+  
+  // Push-to-talk patterns
+  const pushToTalkPatterns = [
+    /switch.*to.*push.*to.*talk/,
+    /change.*to.*push.*to.*talk/,
+    /use.*push.*to.*talk/,
+    /enable.*push.*to.*talk/,
+    /set.*mode.*push.*to.*talk/,
+    /set.*voice.*mode.*push.*to.*talk/,
+    /hold.*to.*talk/,
+    /hold.*spacebar/,
+  ];
+  
+  // Toggle patterns
+  const togglePatterns = [
+    /switch.*to.*toggle/,
+    /change.*to.*toggle/,
+    /use.*toggle/,
+    /enable.*toggle/,
+    /set.*mode.*toggle/,
+    /set.*voice.*mode.*toggle/,
+    /press.*to.*toggle/,
+    /toggle.*mode/,
+  ];
+  
+  for (const pattern of pushToTalkPatterns) {
+    if (pattern.test(normalized)) {
+      return 'push-to-talk';
+    }
+  }
+  
+  for (const pattern of togglePatterns) {
+    if (pattern.test(normalized)) {
+      return 'toggle';
+    }
+  }
+  
+  return null;
+}
 
 /**
  * Register all IPC channel handlers
@@ -158,6 +207,30 @@ export function registerIPCHandlers(
   ipcMain.on(IPC_CHANNELS.USER_SUBMIT_INSTRUCTION, async (event, payload: UserInstructionPayload) => {
     console.log('Received user instruction:', payload.text);
     
+    // Check if instruction is a voice mode switch command
+    const voiceModeSwitchResult = checkVoiceModeSwitchCommand(payload.text);
+    if (voiceModeSwitchResult) {
+      console.log('Detected voice mode switch command:', voiceModeSwitchResult);
+      // Send voice mode change to renderer
+      if (electronShell && electronShell.getMainWindow) {
+        const mainWindow = electronShell.getMainWindow();
+        if (mainWindow) {
+          sendToRenderer(mainWindow, IPC_CHANNELS.UI_SET_VOICE_MODE, { mode: voiceModeSwitchResult });
+          // Send confirmation message
+          const confirmationMessage = {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant' as const,
+            content: voiceModeSwitchResult === 'push-to-talk'
+              ? 'Voice mode changed to Push to Talk. Hold spacebar to record.'
+              : 'Voice mode changed to Toggle. Press spacebar to start/stop recording.',
+            timestamp: new Date().toISOString(),
+          };
+          sendToRenderer(mainWindow, IPC_CHANNELS.PIPELINE_MESSAGE, { message: confirmationMessage });
+        }
+      }
+      return;
+    }
+    
     if (!intentPipeline) {
       console.error('Intent pipeline not available');
       return;
@@ -201,6 +274,45 @@ export function registerIPCHandlers(
     console.log('Set suggestions visible:', payload.visible);
     if (electronShell && electronShell.setSuggestionsVisible) {
       electronShell.setSuggestionsVisible(payload.visible);
+    }
+  });
+
+  // ─── Focus Reading Handlers ───────────────────────────────
+
+  // Toggle focus reading mode
+  ipcMain.handle(IPC_CHANNELS.FOCUS_READING_TOGGLE, async (event, payload: FocusReadingTogglePayload) => {
+    console.log('Focus reading toggle:', payload.enabled);
+    if (electronShell && electronShell.toggleFocusReading) {
+      await electronShell.toggleFocusReading(payload.enabled, payload.settings);
+    }
+  });
+
+  // Navigate to next paragraph
+  ipcMain.handle(IPC_CHANNELS.FOCUS_READING_NEXT, async () => {
+    if (electronShell && electronShell.focusReadingNext) {
+      await electronShell.focusReadingNext();
+    }
+  });
+
+  // Navigate to previous paragraph
+  ipcMain.handle(IPC_CHANNELS.FOCUS_READING_PREV, async () => {
+    if (electronShell && electronShell.focusReadingPrev) {
+      await electronShell.focusReadingPrev();
+    }
+  });
+
+  // Exit focus reading mode
+  ipcMain.handle(IPC_CHANNELS.FOCUS_READING_EXIT, async () => {
+    if (electronShell && electronShell.exitFocusReading) {
+      await electronShell.exitFocusReading();
+    }
+  });
+
+  // Update focus reading settings
+  ipcMain.handle(IPC_CHANNELS.FOCUS_READING_UPDATE_SETTINGS, async (event, payload: FocusReadingUpdateSettingsPayload) => {
+    console.log('Focus reading update settings:', payload.settings);
+    if (electronShell && electronShell.updateFocusReadingSettings) {
+      await electronShell.updateFocusReadingSettings(payload.settings);
     }
   });
 

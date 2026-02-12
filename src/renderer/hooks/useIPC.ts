@@ -12,6 +12,7 @@ export function useIPC() {
     addMessage,
     setError,
     setPendingConfirmation,
+    setVoiceInputMode,
   } = useAppStore();
 
   useEffect(() => {
@@ -43,6 +44,11 @@ export function useIPC() {
       });
     });
 
+    const unsubscribeVoiceMode = window.electronAPI.onSetVoiceMode((payload) => {
+      console.log('Voice mode changed via IPC:', payload.mode);
+      setVoiceInputMode(payload.mode);
+    });
+
     // Clean up listeners on unmount
     return () => {
       unsubscribeSummary();
@@ -51,8 +57,9 @@ export function useIPC() {
       unsubscribeError();
       unsubscribeNavigation();
       unsubscribeConfirm();
+      unsubscribeVoiceMode();
     };
-  }, [setPipelineStatus, setCurrentSummary, setCurrentUrl, addMessage, setError, setPendingConfirmation]);
+  }, [setPipelineStatus, setCurrentSummary, setCurrentUrl, addMessage, setError, setPendingConfirmation, setVoiceInputMode]);
 
   // Return methods to send messages to main process
   return {

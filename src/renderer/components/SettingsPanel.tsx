@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTTS } from '../hooks/useTTS';
+import { useAppStore } from '../store/appStore';
 import '../styles/SettingsPanel.css';
 
 interface SettingsPanelProps {
@@ -11,6 +12,7 @@ export function SettingsPanel({ onClose, onSaveApiKey }: SettingsPanelProps) {
   const { getVoices, setVoice, selectedVoice, isSupported: ttsSupported } = useTTS();
   const [autoReadSummaries, setAutoReadSummaries] = useState(true);
   const [autoReadMessages, setAutoReadMessages] = useState(false);
+  const { voiceInputMode, setVoiceInputMode } = useAppStore();
 
   const voices = getVoices();
 
@@ -100,6 +102,29 @@ export function SettingsPanel({ onClose, onSaveApiKey }: SettingsPanelProps) {
                 Text-to-Speech is not supported in your browser.
               </p>
             )}
+          </section>
+
+          {/* Voice Input Section */}
+          <section className="settings-section">
+            <h3>Voice Input</h3>
+            
+            <div className="form-group">
+              <label htmlFor="voice-mode-select">Input Mode</label>
+              <select
+                id="voice-mode-select"
+                value={voiceInputMode}
+                onChange={(e) => setVoiceInputMode(e.target.value as 'push-to-talk' | 'toggle')}
+                aria-label="Select voice input mode"
+              >
+                <option value="push-to-talk">Push to Talk (Hold Space)</option>
+                <option value="toggle">Toggle On/Off (Press Space)</option>
+              </select>
+              <p className="info-text" style={{ marginTop: '8px', fontSize: '0.9em' }}>
+                {voiceInputMode === 'push-to-talk' 
+                  ? 'Hold the spacebar to record, release to stop.'
+                  : 'Press spacebar once to start recording, press again to stop.'}
+              </p>
+            </div>
           </section>
 
           {/* Accessibility Section */}

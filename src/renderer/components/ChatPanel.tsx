@@ -19,7 +19,7 @@ interface ChatPanelProps {
 }
 
 export function ChatPanel({ speechRecognition }: ChatPanelProps) {
-  const { messages, inputText, setInputText, pipelineStatus, addMessage } = useAppStore();
+  const { messages, inputText, setInputText, pipelineStatus, addMessage, voiceInputMode } = useAppStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastSubmittedTranscriptRef = useRef<string>('');
   const {
@@ -209,7 +209,9 @@ export function ChatPanel({ speechRecognition }: ChatPanelProps) {
         
         {isSpeechSupported && (
           <div className="input-hint">
-            💡 Tip: Hold <kbd>Space</kbd> for voice input
+            💡 Tip: {voiceInputMode === 'push-to-talk' 
+              ? 'Hold <kbd>Space</kbd> for voice input'
+              : 'Press <kbd>Space</kbd> to toggle voice input'}
           </div>
         )}
         

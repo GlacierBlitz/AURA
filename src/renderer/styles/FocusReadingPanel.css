@@ -1,0 +1,398 @@
+/* ─── Focus Reading Panel ────────────────────────────────── */
+
+.focus-reading-panel {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+  animation: focusFadeIn 0.2s ease;
+  pointer-events: auto;
+}
+
+@keyframes focusFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.focus-reading-panel {
+  flex-direction: column;
+}
+
+.focus-reading-panel-header {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 10px;
+  width: 90%;
+  max-width: 480px;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  animation: focusSlideUp 0.3s ease;
+  z-index: 10002;
+  pointer-events: auto;
+  overflow: hidden;
+}
+
+/* Re-structure: Make the panel a single container */
+.focus-reading-panel {
+  align-items: center;
+  justify-content: center;
+}
+
+/* Override - use the panel itself as overlay, inner content as card */
+.focus-reading-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f8f9fa;
+  border-radius: 10px 10px 0 0;
+  position: static;
+  transform: none;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  box-shadow: none;
+  animation: none;
+  overflow: visible;
+}
+
+/* Rewrite: wrap header + body in a card-like structure */
+.focus-reading-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The actual card appearance is achieved by styling children together */
+
+.focus-reading-panel-header {
+  background: #f8f9fa;
+  width: 90%;
+  max-width: 480px;
+  padding: 16px 20px;
+  border-radius: 10px 10px 0 0;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.1);
+  z-index: 10002;
+}
+
+.focus-reading-panel-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.focus-reading-close-btn {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background 0.15s, color 0.15s;
+}
+
+.focus-reading-close-btn:hover {
+  background: #f3f4f6;
+  color: #1f2937;
+}
+
+.focus-reading-panel-body {
+  background: white;
+  width: 90%;
+  max-width: 480px;
+  padding: 20px;
+  border-radius: 0 0 10px 10px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+  z-index: 10002;
+  overflow-y: auto;
+  max-height: 65vh;
+}
+
+@keyframes focusSlideUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ─── Description ────────────────────────────────────────── */
+
+.focus-reading-description {
+  font-size: 13px;
+  color: #6b7280;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+/* ─── Toggle Section ─────────────────────────────────────── */
+
+.focus-reading-toggle-section {
+  margin-bottom: 20px;
+}
+
+.focus-reading-toggle-btn {
+  width: 100%;
+  padding: 12px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 2px solid #3b82f6;
+  border-radius: 8px;
+  background: white;
+  color: #3b82f6;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.focus-reading-toggle-btn:hover {
+  background: #eff6ff;
+}
+
+.focus-reading-toggle-btn.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.focus-reading-toggle-btn.active:hover {
+  background: #2563eb;
+}
+
+/* ─── Navigation Section ─────────────────────────────────── */
+
+.focus-reading-nav-section {
+  margin-bottom: 20px;
+  padding: 16px;
+  background: #f0f7ff;
+  border-radius: 8px;
+  border: 1px solid #bfdbfe;
+}
+
+.focus-reading-progress {
+  margin-bottom: 12px;
+}
+
+.focus-reading-progress-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.focus-reading-progress-bar {
+  height: 6px;
+  background: #dbeafe;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.focus-reading-progress-fill {
+  height: 100%;
+  background: #3b82f6;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.focus-reading-nav-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.focus-reading-nav-btn {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #93c5fd;
+  border-radius: 6px;
+  background: white;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.focus-reading-nav-btn:hover:not(:disabled) {
+  background: #dbeafe;
+}
+
+.focus-reading-nav-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.focus-reading-exit-btn {
+  width: 100%;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  background: #fef2f2;
+  color: #dc2626;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.focus-reading-exit-btn:hover {
+  background: #fee2e2;
+}
+
+/* ─── Settings ───────────────────────────────────────────── */
+
+.focus-reading-settings {
+  margin-bottom: 16px;
+}
+
+.focus-reading-settings h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+}
+
+.focus-reading-setting-row {
+  margin-bottom: 14px;
+}
+
+.focus-reading-setting-row label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #4b5563;
+  margin-bottom: 6px;
+}
+
+.focus-reading-slider-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.focus-reading-slider-container input[type="range"] {
+  flex: 1;
+  height: 4px;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #dbeafe;
+  border-radius: 2px;
+  outline: none;
+}
+
+.focus-reading-slider-container input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+.focus-reading-slider-value {
+  font-size: 12px;
+  font-weight: 500;
+  color: #6b7280;
+  min-width: 36px;
+  text-align: right;
+}
+
+.focus-reading-style-options {
+  display: flex;
+  gap: 6px;
+}
+
+.focus-reading-style-btn {
+  flex: 1;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: white;
+  color: #4b5563;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.focus-reading-style-btn:hover {
+  border-color: #93c5fd;
+  background: #f0f7ff;
+}
+
+.focus-reading-style-btn.selected {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+/* ─── Keyboard Shortcuts ─────────────────────────────────── */
+
+.focus-reading-shortcuts {
+  border-top: 1px solid #e5e7eb;
+  padding-top: 16px;
+}
+
+.focus-reading-shortcuts h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 10px 0;
+}
+
+.focus-reading-shortcut-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.focus-reading-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.focus-reading-shortcut kbd {
+  display: inline-block;
+  padding: 2px 6px;
+  font-size: 11px;
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+  background: #f3f4f6;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  color: #374151;
+  min-width: 20px;
+  text-align: center;
+}
+
+.focus-reading-shortcut span {
+  color: #4b5563;
+}

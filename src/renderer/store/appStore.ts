@@ -6,6 +6,7 @@ import type {
   ErrorInfo,
   ActionDescriptor,
 } from '@shared/types';
+import type { FocusHighlightStyle } from '@shared/types/accessibility';
 
 interface AppState {
   // Pipeline status
@@ -34,6 +35,21 @@ interface AppState {
   // User input
   inputText: string;
   setInputText: (text: string) => void;
+
+  // Voice input mode
+  voiceInputMode: 'push-to-talk' | 'toggle';
+  setVoiceInputMode: (mode: 'push-to-talk' | 'toggle') => void;
+
+  // Focus reading
+  focusReadingActive: boolean;
+  focusReadingParagraphIndex: number;
+  focusReadingTotalParagraphs: number;
+  focusReadingDimOpacity: number;
+  focusReadingHighlightStyle: FocusHighlightStyle;
+  setFocusReadingActive: (active: boolean) => void;
+  setFocusReadingStatus: (index: number, total: number) => void;
+  setFocusReadingDimOpacity: (opacity: number) => void;
+  setFocusReadingHighlightStyle: (style: FocusHighlightStyle) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -63,4 +79,19 @@ export const useAppStore = create<AppState>((set) => ({
   // User input
   inputText: '',
   setInputText: (text) => set({ inputText: text }),
+
+  // Voice input mode
+  voiceInputMode: 'push-to-talk',
+  setVoiceInputMode: (mode) => set({ voiceInputMode: mode }),
+
+  // Focus reading
+  focusReadingActive: false,
+  focusReadingParagraphIndex: 0,
+  focusReadingTotalParagraphs: 0,
+  focusReadingDimOpacity: 0.15,
+  focusReadingHighlightStyle: 'spotlight',
+  setFocusReadingActive: (active) => set({ focusReadingActive: active }),
+  setFocusReadingStatus: (index, total) => set({ focusReadingParagraphIndex: index, focusReadingTotalParagraphs: total }),
+  setFocusReadingDimOpacity: (opacity) => set({ focusReadingDimOpacity: opacity }),
+  setFocusReadingHighlightStyle: (style) => set({ focusReadingHighlightStyle: style }),
 }));

@@ -6,6 +6,7 @@ import {
   DEFAULT_ACCESSIBILITY_SETTINGS,
   ACCESSIBILITY_PROFILES 
 } from '@shared/types/accessibility';
+import { useAppStore } from '../store/appStore';
 import '../styles/AccessibilityPanel.css';
 
 interface AccessibilityPanelProps {
@@ -18,6 +19,8 @@ export function AccessibilityPanel({ onClose }: AccessibilityPanelProps) {
     const saved = localStorage.getItem('accessibility-settings');
     return saved ? JSON.parse(saved) : DEFAULT_ACCESSIBILITY_SETTINGS;
   });
+  
+  const { voiceInputMode, setVoiceInputMode } = useAppStore();
 
   console.log('AccessibilityPanel rendered', settings);
 
@@ -233,6 +236,24 @@ export function AccessibilityPanel({ onClose }: AccessibilityPanelProps) {
               <span className="toggle-slider"></span>
               <span className="toggle-label">{settings.simplifyLayout ? 'On' : 'Off'}</span>
             </label>
+          </section>
+
+          {/* Voice Input Mode */}
+          <section className="accessibility-section">
+            <h3>Voice Input Mode</h3>
+            <select
+              value={voiceInputMode}
+              onChange={(e) => setVoiceInputMode(e.target.value as 'push-to-talk' | 'toggle')}
+              className="filter-select"
+            >
+              <option value="push-to-talk">Push to Talk (Hold Space)</option>
+              <option value="toggle">Toggle On/Off (Press Space)</option>
+            </select>
+            <p style={{ marginTop: '8px', fontSize: '0.9em', opacity: 0.8 }}>
+              {voiceInputMode === 'push-to-talk' 
+                ? 'Hold the spacebar to record, release to stop.'
+                : 'Press spacebar once to start recording, press again to stop.'}
+            </p>
           </section>
         </div>
       </div>

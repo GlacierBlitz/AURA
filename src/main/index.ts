@@ -16,6 +16,7 @@ import type {
   UIOpenAccessibilityPayload,
   UIReadContentPayload,
   ChatMessage,
+  FocusReadingStatusPayload,
 } from '@shared/types';
 import type { ActionPlanResponse, ClarificationResponse } from '@shared/types';
 import * as dotenv from 'dotenv';
@@ -188,6 +189,13 @@ async function createWindow() {
 
       // Trigger pipeline
       await intentPipeline.processPageLoad(cdpSession, url);
+    });
+
+    // Register focus reading status callback
+    electronShell.onFocusReadingStatus((status) => {
+      if (!mainWindowRef) return;
+      const payload: FocusReadingStatusPayload = status;
+      sendToRenderer(mainWindowRef, IPC_CHANNELS.FOCUS_READING_STATUS, payload);
     });
 
     return mainWindow;

@@ -1,6 +1,6 @@
 import type { ActionDescriptor, ActionResult, UserDecision } from './actions';
 import type { PageSummary } from './actions';
-import type { AccessibilitySettings } from './accessibility';
+import type { AccessibilitySettings, FocusReadingSettings, FocusReadingStatusPayload } from './accessibility';
 
 // ─── IPC Channel Names ──────────────────────────────────────
 
@@ -19,6 +19,14 @@ export const IPC_CHANNELS = {
   USER_TRANSCRIBE_AUDIO: 'user:transcribe-audio',
   USER_SET_SUGGESTIONS_VISIBLE: 'user:set-suggestions-visible',
 
+  // Focus Reading
+  FOCUS_READING_TOGGLE: 'focus-reading:toggle',
+  FOCUS_READING_NEXT: 'focus-reading:next',
+  FOCUS_READING_PREV: 'focus-reading:prev',
+  FOCUS_READING_EXIT: 'focus-reading:exit',
+  FOCUS_READING_UPDATE_SETTINGS: 'focus-reading:update-settings',
+  FOCUS_READING_STATUS: 'focus-reading:status',
+
   // Main to Renderer
   PIPELINE_SUMMARY: 'pipeline:summary',
   PIPELINE_STATUS: 'pipeline:status',
@@ -28,6 +36,7 @@ export const IPC_CHANNELS = {
   UI_OPEN_ACCESSIBILITY: 'ui:open-accessibility',
   UI_READ_CONTENT: 'ui:read-content',
   UI_STOP_READING: 'ui:stop-reading',
+  UI_SET_VOICE_MODE: 'ui:set-voice-mode',
 
   // Confirmation (bidirectional)
   CONFIRM_REQUEST: 'confirm:request',
@@ -161,3 +170,18 @@ export interface TranscribeAudioResponse {
 export interface SetSuggestionsVisiblePayload {
   visible: boolean;
 }
+
+export interface SetVoiceModePayload {
+  mode: 'push-to-talk' | 'toggle';
+}
+
+export interface FocusReadingTogglePayload {
+  enabled: boolean;
+  settings?: FocusReadingSettings;
+}
+
+export interface FocusReadingUpdateSettingsPayload {
+  settings: FocusReadingSettings;
+}
+
+export type { FocusReadingStatusPayload };

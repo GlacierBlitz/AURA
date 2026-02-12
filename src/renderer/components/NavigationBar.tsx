@@ -10,9 +10,11 @@ interface NavigationBarProps {
   onToggleChat?: () => void;
   showChat?: boolean;
   onOpenAccessibility?: () => void;
+  onToggleFocusReading?: () => void;
+  focusReadingActive?: boolean;
 }
 
-export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccessibility }: NavigationBarProps) {
+export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccessibility, onToggleFocusReading, focusReadingActive }: NavigationBarProps) {
   const [url, setUrl] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
   const currentUrl = useAppStore((state) => state.currentUrl);
@@ -177,6 +179,16 @@ export function NavigationBar({ onNavigate, onToggleChat, showChat, onOpenAccess
         >
           <Home color="black" strokeWidth={2} size={18} />
         </button>
+      {onToggleFocusReading && (
+        <button
+          className={`accessibility-nav-button focus-reading-toggle ${focusReadingActive ? 'active' : ''}`}
+          onClick={onToggleFocusReading}
+          aria-label={focusReadingActive ? "Disable Focus Reading" : "Enable Focus Reading"}
+          title={focusReadingActive ? "Disable Focus Reading" : "Enable Focus Reading"}
+        >
+          📖
+        </button>
+      )}
       {onOpenAccessibility && (
         <button
           className="accessibility-nav-button"

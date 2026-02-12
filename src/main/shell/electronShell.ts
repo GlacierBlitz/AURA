@@ -3,6 +3,7 @@ import { APP_CONFIG } from '@shared/constants';
 import path from 'path';
 import type Protocol from 'devtools-protocol';
 import type { AccessibilitySettings } from '@shared/types/accessibility';
+import type { FocusReadingSettings } from '@shared/types/accessibility';
 import { generateAccessibilityCSS } from '../services/accessibilityService';
 
 // Vite dev server URL and name injected by @electron-forge/plugin-vite
@@ -23,6 +24,9 @@ export class ElectronShell {
   private readonly accessibilityStyleElementId: string = 'aura-accessibility-style';
   private suggestionsVisible: boolean = false;
   private initialPageLoadComplete: boolean = false;
+  private focusReadingActive: boolean = false;
+  private focusReadingSettings: FocusReadingSettings | null = null;
+  private focusReadingStatusCallback: ((status: { active: boolean; paragraphIndex: number; totalParagraphs: number }) => void) | null = null;
 
   constructor() {}
 
@@ -549,6 +553,392 @@ export class ElectronShell {
    */
   private notifyPageLoad(url: string, title: string): void {
     this.pageLoadCallbacks.forEach((callback) => callback(url, title));
+  }
+
+  /**
+   * Register a callback for focus reading status updates
+   */
+  public onFocusReadingStatus(callback: (status: { active: boolean; paragraphIndex: number; totalParagraphs: number }) => void): void {
+    this.focusReadingStatusCallback = callback;
+  }
+
+  /**
+   * Toggle focus reading mode on the BrowserView
+   */
+  public async toggleFocusReading(enabled: boolean, settings?: FocusReadingSettings): Promise<void> {
+    if (!this.webView) {
+      console.error('Web view not initialized for focus reading');
+      return;
+    }
+
+    this.focusReadingActive = enabled;
+    if (settings) {
+      this.focusReadingSettings = settings;
+    }
+
+    if (enabled) {
+      await this.injectFocusReadingScript();
+    } else {
+      await this.removeFocusReading();
+    }
+  }
+
+  /**
+   * Navigate to next paragraph in focus reading mode
+   */
+  public async focusReadingNext(): Promise<void> {
+    if (!this.webView || !this.focusReadingActive) return;
+    try {
+      const result = await this.webView.webContents.executeJavaScript(
+        `(function() { return window.__auraFocusReading?.next?.() || null; })()`,
+        true
+      );
+      if (result && this.focusReadingStatusCallback) {
+        this.focusReadingStatusCallback(result);
+      }
+    } catch (error) {
+      console.error('Error navigating focus reading next:', error);
+    }
+  }
+
+  /**
+   * Navigate to previous paragraph in focus reading mode
+   */
+  public async focusReadingPrev(): Promise<void> {
+    if (!this.webView || !this.focusReadingActive) return;
+    try {
+      const result = await this.webView.webContents.executeJavaScript(
+        `(function() { return window.__auraFocusReading?.prev?.() || null; })()`,
+        true
+      );
+      if (result && this.focusReadingStatusCallback) {
+        this.focusReadingStatusCallback(result);
+      }
+    } catch (error) {
+      console.error('Error navigating focus reading prev:', error);
+    }
+  }
+
+  /**
+   * Exit focus reading mode
+   */
+  public async exitFocusReading(): Promise<void> {
+    this.focusReadingActive = false;
+    await this.removeFocusReading();
+  }
+
+  /**
+   * Update focus reading visual settings while active
+   */
+  public async updateFocusReadingSettings(settings: FocusReadingSettings): Promise<void> {
+    this.focusReadingSettings = settings;
+    if (this.focusReadingActive && this.webView) {
+      try {
+        await this.webView.webContents.executeJavaScript(
+          `(function() { window.__auraFocusReading?.updateSettings?.(${JSON.stringify(settings)}); })()`,
+          true
+        );
+      } catch (error) {
+        console.error('Error updating focus reading settings:', error);
+      }
+    }
+  }
+
+  /**
+   * Inject the focus reading script and CSS into the BrowserView
+   */
+  private async injectFocusReadingScript(): Promise<void> {
+    if (!this.webView) return;
+
+    const settings = this.focusReadingSettings || { dimOpacity: 0.15, highlightStyle: 'spotlight' };
+
+    const script = `
+      (function() {
+        // Prevent double injection
+        if (window.__auraFocusReading) {
+          window.__auraFocusReading.activate();
+          return window.__auraFocusReading.getStatus();
+        }
+
+        const SELECTORS = 'p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, td, th, figcaption, dt, dd, summary, [role="paragraph"]';
+        let paragraphs = [];
+        let currentIndex = -1;
+        let dimOpacity = ${settings.dimOpacity};
+        let highlightStyle = '${settings.highlightStyle}';
+        let overlayEl = null;
+        let isActive = false;
+
+        function collectParagraphs() {
+          const candidates = Array.from(document.querySelectorAll(SELECTORS));
+          // Filter to visible elements with actual text content
+          paragraphs = candidates.filter(el => {
+            const rect = el.getBoundingClientRect();
+            const text = el.textContent?.trim() || '';
+            return rect.width > 0 && rect.height > 0 && text.length > 10;
+          });
+          return paragraphs.length;
+        }
+
+        function createOverlay() {
+          if (overlayEl) return;
+          overlayEl = document.createElement('div');
+          overlayEl.id = 'aura-focus-overlay';
+          overlayEl.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:2147483640;pointer-events:none;transition:background 0.3s ease;';
+          document.body.appendChild(overlayEl);
+
+          // Add style element for focus reading
+          let styleEl = document.getElementById('aura-focus-reading-style');
+          if (!styleEl) {
+            styleEl = document.createElement('style');
+            styleEl.id = 'aura-focus-reading-style';
+            document.head.appendChild(styleEl);
+          }
+          updateOverlayStyle();
+        }
+
+        function updateOverlayStyle() {
+          const styleEl = document.getElementById('aura-focus-reading-style');
+          if (!styleEl) return;
+          styleEl.textContent = \`
+            .aura-focus-dimmed {
+              opacity: \${dimOpacity} !important;
+              transition: opacity 0.3s ease !important;
+            }
+            .aura-focus-active {
+              opacity: 1 !important;
+              position: relative !important;
+              z-index: 2147483641 !important;
+              transition: opacity 0.3s ease, box-shadow 0.3s ease !important;
+              \${highlightStyle === 'spotlight' ? 'box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.5), 0 0 20px rgba(59, 130, 246, 0.3) !important; border-radius: 4px !important; padding: 4px !important; background: rgba(255,255,255,0.95) !important;' : ''}
+              \${highlightStyle === 'underline' ? 'border-bottom: 3px solid #3b82f6 !important; padding-bottom: 2px !important;' : ''}
+              \${highlightStyle === 'box' ? 'outline: 3px solid #3b82f6 !important; outline-offset: 4px !important; border-radius: 4px !important;' : ''}
+            }
+            #aura-focus-indicator {
+              position: fixed;
+              bottom: 20px;
+              left: 50%;
+              transform: translateX(-50%);
+              background: rgba(0,0,0,0.85);
+              color: white;
+              padding: 8px 20px;
+              border-radius: 20px;
+              font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+              font-size: 13px;
+              z-index: 2147483642;
+              pointer-events: none;
+              transition: opacity 0.3s ease;
+              white-space: nowrap;
+            }
+          \`;
+        }
+
+        function createIndicator() {
+          let indicator = document.getElementById('aura-focus-indicator');
+          if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.id = 'aura-focus-indicator';
+            document.body.appendChild(indicator);
+          }
+          return indicator;
+        }
+
+        function updateIndicator() {
+          const indicator = createIndicator();
+          if (currentIndex >= 0 && paragraphs.length > 0) {
+            indicator.textContent = 'Focus Reading: ' + (currentIndex + 1) + ' / ' + paragraphs.length + '  |  ↑↓ Navigate  |  Hover to Focus  |  Esc Exit';
+            indicator.style.opacity = '1';
+          }
+        }
+
+        function dimAll() {
+          // Apply dim to body's direct children recursively via a class on body
+          document.body.classList.add('aura-focus-mode');
+          // Dim all paragraphs
+          paragraphs.forEach(p => {
+            p.classList.remove('aura-focus-active');
+            p.classList.add('aura-focus-dimmed');
+          });
+        }
+
+        function highlightParagraph(index) {
+          if (index < 0 || index >= paragraphs.length) return;
+
+          // Remove previous highlight
+          paragraphs.forEach(p => {
+            p.classList.remove('aura-focus-active');
+            p.classList.add('aura-focus-dimmed');
+          });
+
+          // Highlight current  
+          const el = paragraphs[index];
+          el.classList.remove('aura-focus-dimmed');
+          el.classList.add('aura-focus-active');
+
+          // Also un-dim all ancestors so the focused element is fully visible
+          let parent = el.parentElement;
+          while (parent && parent !== document.body) {
+            parent.classList.remove('aura-focus-dimmed');
+            parent = parent.parentElement;
+          }
+
+          // Scroll into view smoothly
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+          currentIndex = index;
+          updateIndicator();
+        }
+
+        function handleMouseOver(e) {
+          // Find closest paragraph element
+          const target = e.target.closest(SELECTORS);
+          if (!target) return;
+          const idx = paragraphs.indexOf(target);
+          if (idx !== -1 && idx !== currentIndex) {
+            highlightParagraph(idx);
+          }
+        }
+
+        function handleKeydown(e) {
+          if (!isActive) return;
+          
+          if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+            e.preventDefault();
+            e.stopPropagation();
+            window.__auraFocusReading.next();
+          } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+            e.preventDefault();
+            e.stopPropagation();
+            window.__auraFocusReading.prev();
+          } else if (e.key === 'Escape') {
+            e.preventDefault();
+            e.stopPropagation();
+            window.__auraFocusReading.deactivate();
+          }
+        }
+
+        function getStatus() {
+          return {
+            active: isActive,
+            paragraphIndex: currentIndex,
+            totalParagraphs: paragraphs.length
+          };
+        }
+
+        function activate() {
+          collectParagraphs();
+          if (paragraphs.length === 0) {
+            console.log('No paragraphs found for focus reading');
+            return getStatus();
+          }
+          createOverlay();
+          dimAll();
+          isActive = true;
+          // Start at first paragraph if nothing selected
+          if (currentIndex < 0) currentIndex = 0;
+          highlightParagraph(currentIndex);
+          
+          document.addEventListener('mouseover', handleMouseOver, true);
+          document.addEventListener('keydown', handleKeydown, true);
+          
+          return getStatus();
+        }
+
+        function deactivate() {
+          isActive = false;
+          currentIndex = -1;
+          
+          // Remove classes
+          paragraphs.forEach(p => {
+            p.classList.remove('aura-focus-dimmed', 'aura-focus-active');
+          });
+          document.body.classList.remove('aura-focus-mode');
+
+          // Remove overlay
+          if (overlayEl && overlayEl.parentNode) {
+            overlayEl.parentNode.removeChild(overlayEl);
+            overlayEl = null;
+          }
+
+          // Remove style
+          const styleEl = document.getElementById('aura-focus-reading-style');
+          if (styleEl) styleEl.remove();
+
+          // Remove indicator
+          const indicator = document.getElementById('aura-focus-indicator');
+          if (indicator) indicator.remove();
+
+          document.removeEventListener('mouseover', handleMouseOver, true);
+          document.removeEventListener('keydown', handleKeydown, true);
+
+          return getStatus();
+        }
+
+        window.__auraFocusReading = {
+          activate: activate,
+          deactivate: deactivate,
+          next: function() {
+            if (currentIndex < paragraphs.length - 1) {
+              highlightParagraph(currentIndex + 1);
+            }
+            return getStatus();
+          },
+          prev: function() {
+            if (currentIndex > 0) {
+              highlightParagraph(currentIndex - 1);
+            }
+            return getStatus();
+          },
+          getStatus: getStatus,
+          updateSettings: function(s) {
+            if (s.dimOpacity !== undefined) dimOpacity = s.dimOpacity;
+            if (s.highlightStyle) highlightStyle = s.highlightStyle;
+            updateOverlayStyle();
+            if (isActive && currentIndex >= 0) {
+              highlightParagraph(currentIndex);
+            }
+          }
+        };
+
+        return activate();
+      })()
+    `;
+
+    try {
+      const result = await this.webView.webContents.executeJavaScript(script, true);
+      console.log('Focus reading injected:', result);
+      if (result && this.focusReadingStatusCallback) {
+        this.focusReadingStatusCallback(result);
+      }
+    } catch (error) {
+      console.error('Error injecting focus reading script:', error);
+    }
+  }
+
+  /**
+   * Remove focus reading from the BrowserView
+   */
+  private async removeFocusReading(): Promise<void> {
+    if (!this.webView) return;
+
+    try {
+      const result = await this.webView.webContents.executeJavaScript(
+        `(function() {
+          if (window.__auraFocusReading) {
+            const status = window.__auraFocusReading.deactivate();
+            delete window.__auraFocusReading;
+            return status;
+          }
+          return { active: false, paragraphIndex: -1, totalParagraphs: 0 };
+        })()`,
+        true
+      );
+      console.log('Focus reading removed:', result);
+      if (this.focusReadingStatusCallback) {
+        this.focusReadingStatusCallback(result);
+      }
+    } catch (error) {
+      console.error('Error removing focus reading:', error);
+    }
   }
 
   /**

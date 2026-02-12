@@ -53,6 +53,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.17.0",
     "@google/generative-ai": "^0.2.0",
+    "@picovoice/porcupine-node": "^4.0.1",
     "@radix-ui/react-dialog": "^1.0.5",
     "@radix-ui/react-label": "^2.0.2",
     "@radix-ui/react-scroll-area": "^1.0.5",
