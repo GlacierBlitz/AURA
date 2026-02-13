@@ -190,6 +190,51 @@ export class LLMOrchestrator {
       responseFormat: 'action-plan',
     };
 
+    // Log what the AI sees for debugging
+    console.log('\n═══════════════════════════════════════════════════════');
+    console.log('🤖 AI DECISION CONTEXT');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('\n📝 USER INSTRUCTION:');
+    console.log(`"${userInstruction}"`);
+    console.log('\n🌐 PAGE CONTEXT:');
+    console.log('URL:', pageState.url);
+    console.log('Title:', pageState.title);
+    console.log('Extraction Method:', pageState.extractionMethod);
+    
+    if (pageState.axTree) {
+      console.log(`\n📊 Accessibility Tree Nodes (${pageState.axTree.nodes.length} total):`);
+      const clickableNodes = pageState.axTree.nodes.filter((n: any) => 
+        n.role === 'link' || n.role === 'button' || n.selector
+      );
+      console.log(`  Found ${clickableNodes.length} clickable elements`);
+      clickableNodes.slice(0, 15).forEach((node: any, i: number) => {
+        console.log(`  [${i + 1}] ${node.role}: "${node.name}" (${node.selector || 'no selector'})`);
+      });
+      if (clickableNodes.length > 15) {
+        console.log(`  ... and ${clickableNodes.length - 15} more`);
+      }
+    }
+    
+    if (pageState.simplifiedDOM) {
+      console.log(`\n📊 Simplified DOM Elements (${pageState.simplifiedDOM.elements.length} total):`);
+      const clickableElements = pageState.simplifiedDOM.elements.filter((e: any) =>
+        e.tagName === 'A' || e.tagName === 'BUTTON' || e.role === 'link' || e.role === 'button'
+      );
+      console.log(`  Found ${clickableElements.length} clickable elements`);
+      clickableElements.slice(0, 15).forEach((el: any, i: number) => {
+        console.log(`  [${i + 1}] <${el.tagName}> "${el.name}" (${el.selector})`);
+      });
+      if (clickableElements.length > 15) {
+        console.log(`  ... and ${clickableElements.length - 15} more`);
+      }
+    }
+    
+    console.log('\n───────────────────────────────────────────────────────');
+    console.log('📤 FULL PROMPT SENT TO LLM:');
+    console.log('───────────────────────────────────────────────────────');
+    console.log(prompt.userInstruction);
+    console.log('═══════════════════════════════════════════════════════\n');
+
     try {
       // Check cache first
       if (this.cache) {
@@ -198,6 +243,9 @@ export class LLMOrchestrator {
           console.log('[LLMOrchestrator] Using cached action plan response');
           const parsedResponse = this.parseActionResponse(cachedResponse.content);
           if (parsedResponse.type === 'action-plan') {
+            console.log('\n=== ACTION PLAN (from cache) ===');
+            console.log(JSON.stringify(parsedResponse, null, 2));
+            console.log('================================\n');
             this.validateActionPlanResponse(parsedResponse);
           } else {
             this.validateClarificationResponse(parsedResponse);
@@ -221,6 +269,9 @@ export class LLMOrchestrator {
 
       // Validate the parsed response
       if (parsedResponse.type === 'action-plan') {
+        console.log('\n=== ACTION PLAN (generated) ===');
+        console.log(JSON.stringify(parsedResponse, null, 2));
+        console.log('================================\n');
         this.validateActionPlanResponse(parsedResponse);
       } else {
         this.validateClarificationResponse(parsedResponse);

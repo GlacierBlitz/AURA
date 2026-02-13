@@ -231,7 +231,8 @@ export class PageStateExtractor {
             }
             
             // If multiple visible matches, make it more specific
-            if (visibleMatches.length > 1 && visibleMatches[0].parentElement) {
+            // But don't add :nth-child if selector already has it
+            if (visibleMatches.length > 1 && visibleMatches[0].parentElement && !selector.includes(':nth-child')) {
               const firstMatch = visibleMatches[0];
               const siblings = Array.from(firstMatch.parentElement.children);
               const index = siblings.indexOf(firstMatch) + 1;

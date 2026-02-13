@@ -116,7 +116,9 @@ export async function clickElement(
   
   // If element exists but is not visible, try to find visible alternative
   if (!elementInfo.visible) {
-    console.warn(`Element not visible with selector: ${selector}, trying to find visible alternative...`);
+    console.warn(`Element not visible with selector: ${selector}`);
+    console.warn(`Element info:`, elementInfo);
+    console.warn(`Trying to find visible alternative or scroll into view...`);
     
     const visibleSelector = await tryFindVisibleElement(cdpSession, selector);
     if (visibleSelector) {
@@ -129,13 +131,31 @@ export async function clickElement(
     }
     
     if (!elementInfo.visible) {
-      throw new Error(`Element not visible: ${selector}`);
+      throw new Error(`Element not visible: ${selector}. Rect: ${JSON.stringify(elementInfo.rect)}`);
     }
   }
   
   if (!elementInfo.interactable) {
     throw new Error(`Element not interactable: ${finalSelector}`);
   }
+
+  // Scroll element into view to ensure it's visible
+  await cdpSession.sendCommand('Runtime.evaluate', {
+    expression: `
+      (function() {
+        const element = document.querySelector(${JSON.stringify(finalSelector)});
+        if (element) {
+          element.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'center' });
+          return true;
+        }
+        return false;
+      })()
+    `,
+    returnByValue: true,
+  });
+
+  // Small delay to allow scroll to complete
+  await new Promise(resolve => setTimeout(resolve, 100));
 
   // Perform the click
   const result = await cdpSession.sendCommand('Runtime.evaluate', {
